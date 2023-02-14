@@ -1,5 +1,5 @@
 ---
-title: EnglishLeaningByTalkToChatGPT
+title: EnglishLeaningByTalkingToChatGPT
 date: 2023-02-14 13:30:21
 tags:
 ---

@@ -1,0 +1,36 @@
+
+/* 
+设置图片按比例放缩，原来设置中，图片太大了
+其他属性是直接从[浏览器开发者工具查看源代码中]拷来的
+为什么要重复设置这些属性？因为像 about 页面没有这些设置
+*/
+
+img {
+    margin: 0 auto;
+    display: block;
+    width: 95%;
+    height: 90%;
+    object-fit: cover;
+    box-shadow: 0 5px 11px 0 rgba(0,0,0,0.18), 0 4px 15px 0 rgba(0,0,0,0.15);
+    border-radius: 0.25rem;
+    background-color: transparent;
+
+}
+
+html, body, .markdown-body {
+    /* font-family: 'Cambria Math', '汉仪书宋一简'; */
+    font-size: 19px;
+    font-family: "Georgia", "lucida grande", "lucida sans unicode", lucida, helvetica, "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
+}
+
+
+
+u {
+    border-bottom: 2px solid darkorange;
+    text-decoration:none
+}
+
+.markdown-body p {
+    margin-bottom: 16px;
+    margin-top: 24px;
+}

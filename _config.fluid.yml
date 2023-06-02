@@ -227,7 +227,7 @@ color:
 # 主题字体配置
 # Font
 font:
-  font_size: 20px
+  font_size: 17px
   # font_family: Georgia,'华文中宋'
   letter_spacing: 0.04em
   code_font_size: 75%

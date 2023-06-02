@@ -1,0 +1,844 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="B+ Tree 的结构如图 1 所示，B+ 树的每个节点包含 $n-1$ 个 search-key value，$K_1, K_2, …, K_{n-1}$，和 $n$ 个指针，$P_1, P_2, …, P_n$. 这些 search-key value 在节点中按序存储，即若 $i &lt; j$, 有 $K_i &lt; K_j$. 在实际中 search-key value 是可能存在重复">
+<meta property="og:type" content="article">
+<meta property="og:title" content="索引篇二：B-plus Tree">
+<meta property="og:url" content="http://example.com/2022/06/29/%E7%B4%A2%E5%BC%95%E7%AF%87%E4%BA%8C%EF%BC%9AB-plus%20Tree/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="B+ Tree 的结构如图 1 所示，B+ 树的每个节点包含 $n-1$ 个 search-key value，$K_1, K_2, …, K_{n-1}$，和 $n$ 个指针，$P_1, P_2, …, P_n$. 这些 search-key value 在节点中按序存储，即若 $i &lt; j$, 有 $K_i &lt; K_j$. 在实际中 search-key value 是可能存在重复">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/B_plus_tree/1.jpg">
+<meta property="og:image" content="http://example.com/img/B_plus_tree/2.jpg">
+<meta property="og:image" content="http://example.com/img/B_plus_tree/3.jpg">
+<meta property="og:image" content="http://example.com/img/B_plus_tree/4.jpg">
+<meta property="og:image" content="http://example.com/img/B_plus_tree/5.jpg">
+<meta property="og:image" content="http://example.com/img/B_plus_tree/6.jpg">
+<meta property="og:image" content="http://example.com/img/B_plus_tree/7.jpg">
+<meta property="article:published_time" content="2022-06-29T10:41:27.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.335Z">
+<meta property="article:author" content="gouhongshen">
+<meta property="article:tag" content="索引">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/B_plus_tree/1.jpg">
+  
+  
+  
+  <title>索引篇二：B-plus Tree - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="索引篇二：B-plus Tree"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-06-29 18:41" pubdate>
+          2022年6月29日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          6.6k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          74 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">索引篇二：B-plus Tree</h1>
+            
+            <div class="markdown-body">
+              
+              <h2 id="B-Tree-的结构"><a href="#B-Tree-的结构" class="headerlink" title="B+ Tree 的结构"></a>B+ Tree 的结构</h2><p><img src="/img/B_plus_tree/1.jpg" srcset="/img/loading.gif" lazyload alt="图 1 B+ tree 节点结构"><br>如图 1 所示，B+ 树的每个节点包含 $n-1$ 个 search-key value，$K_1, K_2, …, K_{n-1}$，和 $n$ 个指针，$P_1, P_2, …, P_n$. 这些 search-key value 在节点中按序存储，即若 $i &lt; j$, 有 $K_i &lt; K_j$. 在实际中 search-key value 是可能存在重复的，<font color=red>目前只考虑不重复的情况，后面再介绍重复的情况</font>。</p>
+<p>B+ 树的节点分为三类，叶子节点（leaf node）、非叶子节点（non-leaf node），下面一个一个介绍。<br><img src="/img/B_plus_tree/2.jpg" srcset="/img/loading.gif" lazyload alt="图 2 叶子节点"></p>
+<p><strong>首先是叶子节点</strong>。如图 2，是一个 n &#x3D; 4 的叶子节点，search-key 为 instructor 表的 name 属性. 对于 $i&#x3D;1, 2, …, n-1$，指针 $P_i$ 指向存储在文件中的、search-key value 等于 $K_i$ 的记录，$P_n$ 指向右边相邻的同级节点或者为 null（如果右边不存在节点）</p>
+<p>每一个叶子节点<u>能够容纳的指针</u>的数量为 $[\lceil \frac{n}{2} \rceil,\ n]$，对于 n &#x3D; 4，其区间为 [2, 4]. </p>
+<p>对于两个叶子节点 $L_i, L_j$，若 $i &lt; j$，即 $L_i$ 在 $L_j$ 的左边，那么对于所有在 $L_i$ 中的 search-key value，都小于 $L_j$ 中的每一个 search-key value. </p>
+<p>B+ 树是一个多级索引结构，叶子节点常采用稠密索引，也就是说，出现在文件记录中的每一个 search-key value，也会出现在叶子节点中（一个指针对应一条记录）。<br><img src="/img/B_plus_tree/3.jpg" srcset="/img/loading.gif" lazyload alt="图 3"><br><strong>然后是非叶子节点</strong>，非叶子节点是对叶子节点建立的多级稀疏索引。非叶子节点和叶子节点的不同是，非叶子节点的指针指向的是树节点而非记录，而且非叶子节<u>能够容纳的指针</u>数量也是 $[\lceil \frac{n}{2} \rceil, n]$. </p>
+<p>在一个非叶子节点中，$P_i\ \ 1 &lt; i &lt; n$，指向一个子树，该子树包含的 search-key value 小于 $K_i$，但大于等于 $K_{i-1}$；指针 $P_1$ 指向包含小于 $K_1$ 的 search-key value 的子树；而 $P_n$ 指向其右边的相邻同级节点或者为 null（如果右边不存在节点）。</p>
+<p>图 3 展示了一个在 instructor relation 文件上建立的完整 B+ 树，其中 n &#x3D; 4.</p>
+<p><u>B+ 树是一颗平衡多叉树，即从根节点到每个叶节点的路径长度总是一样的，正是如此，才提供了良好的增删改查性能，而且每个节点至少要半满</u>。</p>
+<p><font color=red>对于 search key value 存在重复的情况</font>，可以有如下的方式解决：</p>
+<ul>
+<li>叶子节点存储每一个出现的 search key value，无论它是否重复，那么 对于 $i &lt; j$, 就应该有 $K_i &lt;&#x3D; K_j$.</li>
+<li>在叶子节点上，对于每一个 search key value，不再存储单个指针，而是一组指针，指向具有相同 search key value 的记录，由于每组指针的数量不确定，节点中的 search key value 个数也就不一定了。</li>
+</ul>
+<p>这两种方式都会增加操作的复杂度，不常使用。而绝大多数的数据库系统通过组合多个属性来构成不重复的 search key. 假如某个索引的 search key 为 $a_i$，并且它可能重复（不是主键或候选键），这时系统选择一个不可能重复的属性，假设为 $A_p$，将它们两个组合在一起构成新的 search key $(a_i, A_p)$，称为 composite search-key，也就是联合索引. <u>还有一个问题</u>，联合索引中各属性的顺序如何确定？</p>
+<blockquote>
+<p>在创建多列索引时，我们根据业务需求，where 子句中使用最频繁的一列放在最左边，因为索引查询一般会遵循最左前缀匹配的原则，即最左优先，在检索数据时从联合索引的最左边开始匹配。</p>
+</blockquote>
+<blockquote>
+<p>最左前缀匹配原则：索引的底层是一颗 B+ 树，那么联合索引的底层也就是一颗 B+ 树，叶子节点存储的 Key 是组合键值。由于构建一棵 B+ 树只能根据一个值来确定索引关系，所以数据库依赖联合索引最左的字段来构建。举个例子，以 (a, b) 组合属性建立联合索引时，会优先使用属性 a 的大小构建索引，当遇到 a 相等时，再按 b 的顺序，那么叶子节点的 Key 就可能是：[1, 3], [1, 4], [2, 8], [3, 1]…</p>
+</blockquote>
+<blockquote>
+<p>对于 (a,b,c) 组合属性构成的联合索引，如果 where 子句中只包含 b 或 c 而不包含 a，那么该查询就不能使用该索引。</p>
+</blockquote>
+<h2 id="在-B-树上的查询"><a href="#在-B-树上的查询" class="headerlink" title="在 B+ 树上的查询"></a>在 B+ 树上的查询</h2><p>假设现在要查询一个 search-key 值为 $v$ 的记录，下图 4 展示了其伪代码，比较简单就不解释了：<br><img src="/img/B_plus_tree/4.jpg" srcset="/img/loading.gif" lazyload alt="图 4"></p>
+<p>由于每个节点有一个 $P_n$ 指针指向下一个同级节点，所以 B+ 树支持范围查询（range queries），其伪代码如下图 5：<br><img src="/img/B_plus_tree/5.jpg" srcset="/img/loading.gif" lazyload alt="图 5"></p>
+<p>在范围查询的伪代码中，先采用单值查询 find(lb) 的方式找到落在 [lb, ub] 中且最小的记录，然后向后遍历（可能跨节点）找到所有合适的记录。<u>需要注意</u>，伪代码中 n 表示的是 $K$ 的个数，和上文中的 n 意义不一样，上文中 n 表示指针的个数，在伪代码中，节点的最后一个指针应该是 $P_{n+1}$.</p>
+<p><strong>现在计算下 B+ 树查询的时间复杂度</strong>。假设文件中共有 $N$ 条记录，从根节点到叶子节点的路径长度不超过 $\lceil log_{\lceil\frac{n}{2}\rceil}(N)\rceil$. </p>
+<p>一般情况下，B+ 树节点的大小和 block 的大小一致，同为 4KB-8KB，假设 search key 的大小为 32B（一般没这么大），指针的大小为 8B，那么一个节点能存储 100 个 search key value. 如果文件中的记录总共包含 1,000,000 个 search key value，查找某个特定的记录最多只需要访问 4 个节点，即最多读 4 次磁盘，远远少于平衡二叉树的次数，最后只需要根据指针的值再读一次磁盘就能得到目标记录。</p>
+<p><u>而范围查询代价更高一些</u>，假设最后返回的指针个数为 M，这 M 个指针在叶子节点上必然是连续的，所以要读取这 M 个指针，最多需要读取 $\lceil\frac{M}{n&#x2F;2}\rceil + 1$ 次磁盘，因为一个叶子节点最少有 $\frac{n}{2}$ 个指针。为了获取这些指针所指向的记录，还需要计算一些开销，<u>如果是 secondary index</u>，尽管记录的 search key value 是相邻的，但这些记录在文件中却不一定相邻，所以最多需要 M 次磁盘 I&#x2F;O. <u>如果是 primary index</u>，那么这些记录在文件中也是相邻的，所以一次磁盘 I&#x2F;O 读取一个 block，其中包含多条记录，磁盘 I&#x2F;O 大大减少。</p>
+<p><font color=red>假如 search key value 存在重复，如何查找指定的记录？</font>使用上面所说的使用组合 search key 的方式去重，假设组合后的 search key 为 $(a_i, A_p)$，当给定 $a_i &#x3D; v$ 时，如何在组合索引中找到所有包含 search key 为 $v$ 的记录？使用范围查找，其范围为 $[lb, ub]$，且 $lb &#x3D;(v, min(A_p)),\ ub &#x3D;(v, max(A_p))$.</p>
+<h2 id="B-树文件组织方式"><a href="#B-树文件组织方式" class="headerlink" title="B+ 树文件组织方式"></a>B+ 树文件组织方式</h2><p>本节讨论，如何以 B+ 树结构组织文件，需要与 B+ 树索引区分开。普通的 B+ 树索引是在文件上建立索引（叶子节点存储的是指针），而 B+ 树文件的叶子节点存储实际的记录。<br><img src="/img/B_plus_tree/6.jpg" srcset="/img/loading.gif" lazyload alt="图 6"></p>
+<p>如上图 6，在 B+ 树文件组织方式中，叶子节点（叶子 block）存储实际的记录，而不是指向记录的指针，而非叶子节点还和 B+ 树的定义一样。因为记录要比指针大很多，这样一来叶子节点存储的记录就会大大减少，但依旧要求至少半满。</p>
+<p>查找、插入和删除操作与在 B+ 树上定义的一样。</p>
+<p><strong>当要插入一条 search key value 为 $v$ 的记录时</strong>，搜索该 B+ 树，找到 $&lt;&#x3D; v$ 的最大的 search key value（或者最小的 $&gt;&#x3D; v$ 的 search key value），同样也就找到了待插入的 block（叶子节点）。<u>如果该 block 还有空间</u>，那么按 search key value 的顺序插入该记录（可能涉及到记录在 block 中的移动，参考数组的插入操作）。<u>如果没有空间</u>，执行分裂操作（split），将待插入纪录和原记录按照 search key value 顺序平均分成两部分，同时创建一个新的 block（叶子节点），将前一半放在原 block 中，后一半放入新 block中。还需要索引新 block，即放入一条记录 $(key, P_i)$ 到分裂 block 的父节点中，其中 $key$ 是新 block 中最小的 search key value，$P_i$ 则是指向新 block 的指针。很明显，这是一个递归操作，父节点的插入依然可能引起分裂。</p>
+<p><strong>当要删除一条记录时</strong>，同样需要定位记录的 search key value，然后删除该记录（如果存在多个相等的 search key value，需要遍历它们直到找到目标记录），删除后，需要移动后面的记录填补删除记录的空白。由于每个节点都需要满足半满，如果删除一条记录后，节点不满足该要求，就需要从兄弟节点借一些记录，如果两个兄弟都不够，就只能释放 block，合并兄弟，同样地，这些操作也会影响到父节点。</p>
+<p>B+ 树文件组织方式还能用于大文件，具体地，将大文件划分成多记录，再采用 B+ 树组织。</p>
+<h2 id="一些其他的内容"><a href="#一些其他的内容" class="headerlink" title="一些其他的内容"></a>一些其他的内容</h2><p><font color=dark-green>Secondary Indices And Record Relocation</font><br>假设在 instructor 表文件上建立了两个索引，$A_{idx}$ 建立在 dept_name 属性上的，$B_{idx}$ 建立 ID 上，很明显 $A_{idx}$ 是一个 secondary index，而 $B_{idx}$ 是 primary index。不妨假设 $B_{idx}$ 采用 B+ 树文件组织方式，$A_{idx}$ 采用何种索引结构都无所谓，但一个文件只能有一种索引结构能够改变记录的存储位置，所以 $A_{idx}$ 的索引项只能存储指向记录的指针。当 $B_{idx}$ 节点分裂时，会有部分的记录移动到新的磁盘位置，这时候，那些 secondary index 就需要更新（记录的位置变了，之前的指针也就失效了），包括 $A_{idx}$. 这样的索引结构可能很多，可能涉及很多的记录，那么就可能需要非常多次的磁盘读写。</p>
+<p><font color=red>一个比较广泛的解决方法是</font>，在 secondary index 中，对于某个 search key value，不再存储指向对应记录的指针，而是存储 primary index 的 search key 在该记录中的值。当使用 secondary index 查找记录时，就需要两个步骤：</p>
+<ul>
+<li>先在 secondary index 中找到该记录对应的 primary index 的 search key value.</li>
+<li>然后借助该 value 再到 primary index 中查找具体的记录。</li>
+</ul>
+<p>这样就避免了更新大量 secondary index 中指向记录指针。举个例子，假如有一张表 $R$ 包含三个属性列：id，salary, name，其中 id 为主键。假如现在要在 name 上建立一个 secondary index，那么在索引叶子节点中存储的不再是 [$V_{name},\ ptr$]，而是 [$V_{name},\ id$]. 如果现在执行如下的 sql 语句：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><code class="hljs sql"><span class="hljs-number">1.</span> <span class="hljs-keyword">select</span> id, name, salary <span class="hljs-keyword">from</span> R <span class="hljs-keyword">where</span> id <span class="hljs-operator">=</span> <span class="hljs-number">10</span><br><span class="hljs-number">2.</span> <span class="hljs-keyword">select</span> id name <span class="hljs-keyword">from</span> R <span class="hljs-keyword">where</span> name <span class="hljs-operator">=</span> &quot;Tim&quot;<br><span class="hljs-number">3.</span> <span class="hljs-keyword">select</span> id name salary <span class="hljs-keyword">from</span> R <span class="hljs-keyword">where</span> name <span class="hljs-operator">=</span> &quot;Joe&quot;<br></code></pre></td></tr></table></figure>
+<p>执行第一条 sql 时直接走关于 id 的 primary index；执行第二条 sql 时，可以直接走关于 name 的 primary index；执行第三条 sql 时，需要先在关于 name 的 primary index 中找到对于的 id（可能有多个），然后再走关于 id 的 primary index，<u>这个过程称为回表</u>，减少回表带来的性能损失可以参与文章<a href="/2022/08/03/%E7%B4%A2%E5%BC%95%E7%AF%87%E5%9B%9B%EF%BC%9AParallel%20Index/" title="索引篇四：Parallel Index">索引篇四：Parallel Index</a>。</p>
+<br>
+
+<p><font color=dark-green>Search Key Value 长度可变</font><br>如果 B+ 树的 search key 为字符串，长度可变，那么每个节点的容量就不一定，出度不一定。同时，插入、删除等过程也会发生变化，不再根据 search key value 的个数判断是否指向分裂还是合并，而是 block 是否能够容纳新的内容。为了增加每个节点能够容纳的 search key value 的数量（尽量使树又矮又胖），<u>一种前缀压缩（prefix compression）的技术被提出来</u>。</p>
+<p>对于每个非叶子节点，在索引子树时（或叶子节点），不需要存储完整的 search key value，而是只存储一部分前缀，只要在节点内部，能够区分各个子树即可，如下图 7。<br><img src="/img/B_plus_tree/7.jpg" srcset="/img/loading.gif" lazyload alt="图 7"></p>
+<p><font color=dark-green>B+ 树的高效构造</font><br>考虑这样这种场景，在一个非常大的表上（很多记录）建一个 secondary index 类型的 B+ 树索引，表和索引都很大，内存是放不下的。<u>按照最简单的方式构建</u>，扫描表的每一条记录，然后往 B+ 树中插入条目，可能是 search key value 和指向记录的指针，或者是前面提到的 search key value 和 primary index 中该记录对应的 search key value. 由于是 non-clustering index，所以相邻的记录可能要插入到不同的节点中（block），也就是可能存在大量的磁盘读写（表文件可以顺序扫描，每个 block 只需要一次磁盘 I&#x2F;O，而 B+ 树的各个节点 block 可能需要多次磁盘 I&#x2F;O，因为不同的记录需要插入到不同的节点，而 buffer pool 的容量有限，这些节点已经替换出了内存）。</p>
+<p>像上面这样的大量插入条目的操作被称为该索引的 bulk loading，<u>通常采用的高效的方法是</u>，创建一个临时的索引条目文件。扫描表文件，为每条记录创建一条索引条目，追加到该临时文件，然后对该临时文件排序（见 <a href="/2022/07/01/%E6%9F%A5%E8%AF%A2%E5%A4%84%E7%90%86%E7%AF%87%EF%BC%9ASorting/" title="查询处理篇：Sorting">查询处理篇：Sorting</a>），最后扫描已经排好序的文件（非此临时文件，具体见连接），将这些索引条目插入到 B+ 树中。</p>
+<p><u>先排序再插入有什么好处？</u>上面提到的大量的磁盘 I&#x2F;O 是因为，这些在表文件中相邻的记录的索引条目不一定在索引结构中相邻（不在同一个节点 block 中），那如果先将这些索引条目按照 search key value 排好序，那么插入时，属于同一个节点的条目就能一次性插入该节点，也就是说每个节点 block 只需要一次磁盘 I&#x2F;O 即可。</p>
+<p><u>性能上还能更近一步</u>，如果索引条目要插入的 B+ 树本身是空的，那么在排完序后，不需要采用插入的方式，而是直接在排完序后的文件上构建。一个文件包含多个 block，这些 block 就是叶子节点，然后取出这些 block 中的最小的 search key value，加上一个指向 block 的指针，就可以构成上一层的条目（分配新的 block，将这些条目写入），继续下去直到创建根节点。<u>这种方式称为 bottom-up B+ tree construction</u>，能够减少大量的磁盘读写（全部的叶节点也就创建好了，也写好了）。 </p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这里总结下 B+ 树的各种操作的时间复杂度，假设，文件中共有 $N$ 条记录，B+ 树的每个节点能存储 $n$ 个 search key value（也就是 $n+1$ 个指针），并且 search key value 不重复：</p>
+<p><u>对于单个记录的查询操作</u>，找到目标记录的（如果存在）search key value 最多需要 $\lceil log_{\lceil \frac{n}{2}\rceil}(N)\rceil$ 次磁盘 I&#x2F;O，如果是采用 B+ 树组织文件，那么不需要额外的磁盘读写，如果是指针或 primary index 的 search key value 则还需要其他磁盘读写，这里考虑最简单的情况，采用 B+ 树组织文件，下同。</p>
+<p><u>对于单个记录的插入操作</u>，找到待插入的节点（block），最多需要 $\lceil log_{\lceil \frac{n}{2}\rceil}(N)\rceil$ 次磁盘 I&#x2F;O，插入后，这些 block 还需要写回磁盘，所以一共需要 $\lceil log_{\lceil \frac{n}{2}\rceil}(N)\rceil + 1 + x$ 次磁盘 I&#x2F;O，其中 1 表示写回更新的 block，$x$ 表示可能分裂引起的 block 更新的数量（包括新分配的 block）。</p>
+<p><u>对于单个记录的删除操作</u>，同插入操作。</p>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E7%B4%A2%E5%BC%95/" class="category-chain-item">索引</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/%E7%B4%A2%E5%BC%95/">#索引</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>索引篇二：B-plus Tree</div>
+      <div>http://example.com/2022/06/29/索引篇二：B-plus Tree/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年6月29日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/06/29/%E6%95%B0%E6%8D%AE%E5%BA%93%E7%A3%81%E7%9B%98%E5%AD%98%E5%82%A8/" title="关系型数据库磁盘存储">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">关系型数据库磁盘存储</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/06/29/%E7%B4%A2%E5%BC%95%E7%AF%87%E4%B8%80%EF%BC%9A%E5%93%88%E5%B8%8C%E7%B4%A2%E5%BC%95/" title="索引篇一：哈希索引">
+                        <span class="hidden-mobile">索引篇一：哈希索引</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

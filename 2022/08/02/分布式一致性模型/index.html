@@ -1,0 +1,858 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="本章内容来自书籍《深入理解分布式系统》第三章和一些其他的资料，又或者是自己的理解。  前言本文要谈论的一致性模型和复制有着密切关系。通过复制一节我们知道，复制既带来了高可用性和高性能等好处，但也带来了多个副本如何保持数据一致这个问题，尤其是写操作何时，以何种方式更新到所有副本决定了分布式系统付出怎样的性能代价。按照传统冯·诺依曼体系结构的计算模型来看，读操作应当返回最近的写操作所写入的结果，这是">
+<meta property="og:type" content="article">
+<meta property="og:title" content="分布式一致性模型">
+<meta property="og:url" content="http://example.com/2022/08/02/%E5%88%86%E5%B8%83%E5%BC%8F%E4%B8%80%E8%87%B4%E6%80%A7%E6%A8%A1%E5%9E%8B/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="本章内容来自书籍《深入理解分布式系统》第三章和一些其他的资料，又或者是自己的理解。  前言本文要谈论的一致性模型和复制有着密切关系。通过复制一节我们知道，复制既带来了高可用性和高性能等好处，但也带来了多个副本如何保持数据一致这个问题，尤其是写操作何时，以何种方式更新到所有副本决定了分布式系统付出怎样的性能代价。按照传统冯·诺依曼体系结构的计算模型来看，读操作应当返回最近的写操作所写入的结果，这是">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/consistency-model/1.png">
+<meta property="og:image" content="http://example.com/img/consistency-model/2.png">
+<meta property="og:image" content="http://example.com/img/consistency-model/3.png">
+<meta property="og:image" content="http://example.com/img/consistency-model/4.png">
+<meta property="og:image" content="http://example.com/img/consistency-model/5.png">
+<meta property="og:image" content="http://example.com/img/consistency-model/6.png">
+<meta property="og:image" content="http://example.com/img/consistency-model/7.png">
+<meta property="og:image" content="http://example.com/img/consistency-model/8.png">
+<meta property="article:published_time" content="2022-08-02T09:01:00.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.314Z">
+<meta property="article:author" content="gouhongshen">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/consistency-model/1.png">
+  
+  
+  
+  <title>分布式一致性模型 - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="分布式一致性模型"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-08-02 17:01" pubdate>
+          2022年8月2日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          6.6k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          74 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">分布式一致性模型</h1>
+            
+            <div class="markdown-body">
+              
+              <blockquote>
+<p>本章内容来自书籍《深入理解分布式系统》第三章和一些其他的资料，又或者是自己的理解。</p>
+</blockquote>
+<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><strong>本文要谈论的一致性模型和复制有着密切关系</strong>。通过复制一节我们知道，复制既带来了高可用性和高性能等好处，但也带来了多个副本如何保持数据一致这个问题，<u>尤其是写操作何时，以何种方式更新到所有副本决定了分布式系统付出怎样的性能代价</u>。按照传统冯·诺依曼体系结构的计算模型来看，读操作应当返回最近的写操作所写入的结果，这是从我们刚开始接触计算机就认为的很自然的逻辑，但关键问题在于“最近”的含义是比较模糊的，到底何时、何种情况才能读到最近的写操作的结果？针对这种情况，我们需要一种模型，能够帮助开发者预测系统中读写操作的结果。</p>
+<blockquote>
+<p>tips: 理解下面的一致性模型时，往往要考虑多副本之间的不一致性（可能是因为故障或延迟等原因）</p>
+</blockquote>
+<br>
+
+<p>一致性模型就是指，在并发编程中，系统和开发者之间的一种约定，如果开发者遵循某些规则，那么开发者执行读操作或写操作的结果是可预测的。</p>
+<p>首先，这句话最重要的是“可预测”，可预测保证了程序逻辑的确定性，如果对一个系统执行读写操作却无法返回可预测的结果，那么这样的系统是很难使用的。其次，这里的系统是一个很宽泛的概念，虽然一致性模型常用于分布式系统(如分布式文件系统、分布式存储、分布式数据库等)，但也可以指单台计算机的内存或单个寄存器。因为当多线程对内存中的变量进行并发读写操作时，同样是并发编程，也存在同样的可预测问题。同理，定义中的开发者既可以是分布式系统的使用者，也可以是客户端，或者具体的进程。最后，<strong>一致性模型本质上定义了写操作的顺序和可见性，即并发写操作执行的顺序是怎样的，写操作的结果何时能够被别的进程看见</strong>。</p>
+<blockquote>
+<p>一致性模型并非分布式系统独有，在多处理器和并行计算的研究中已经提出很多，本文主要讨论那些能够很好适应分布式系统的一致性模型。</p>
+</blockquote>
+<br>
+
+<p><img src="/img/consistency-model/1.png" srcset="/img/loading.gif" lazyload></p>
+<blockquote>
+<p>上图是对一致性模型的分类，主要有三类：</p>
+<ul>
+<li><strong>分区不可用</strong>：当满足这类一致性模型的系统发生网络分区时，为了保证数据一致性和正确性，系统将不再提供服务，即不可用。这类一致性模型包括线性一致性和顺序一致性。</li>
+<li><strong>分区基本可用</strong>：满足这类一致性模型的系统可以容忍一部分节点发生故障，还未出现故障的节点仍然可用，但前提是客户端不能将请求发往不可用的副本节点。这类一致性模型包括因果一致性、PRAM 一致性和读你所写一致性。</li>
+<li><strong>分区高可用</strong>：满足这类一致性模型的系统的可用性是最高的，即使网络发生严重分区，在没有发生故障的节点上依然保证可用，包括读后写一致性、单调读一致性和单调写一致性。</li>
+</ul>
+</blockquote>
+<h2 id="线性一致性"><a href="#线性一致性" class="headerlink" title="线性一致性"></a>线性一致性</h2><p>线性一致性（linearizable consistency &#x2F; linearizability）是最强的一致性模型，通常也被称为强一致性、严格一致性、原子一致性、立即一致性或外部一致性。CAP 中的 C 指的就是它。</p>
+<h3 id="线性一致性直观理解"><a href="#线性一致性直观理解" class="headerlink" title="线性一致性直观理解"></a>线性一致性直观理解</h3><p>线性一致性的基本想法是让一个系统看起来好像只有一个数据副本，而且所有的操作都是原子的，下面以一个例子阐述：<br><img src="/img/consistency-model/2.png" srcset="/img/loading.gif" lazyload></p>
+<blockquote>
+<p>上图左边，有两个客户端 A 和 B 同时执行写操作，客户端 A 执行 x &#x3D; 1，客户端 B 执行 x &#x3D; 2，但由于副本之间存在同步延迟，最终导致两个副本的 x 值不同。根据线性一致性的要求，系统好像只有一个副本且操作是原子的，如果满足这个要求，就会变成右边那样，这样系统的行为就变得可预测。</p>
+</blockquote>
+<blockquote>
+<p><u>为什么强调操作是原子的呢</u>？注意观察，图右中客户端的写请求发送到副本上后，我们认为副本执行的写操作是立即生效的，这时可以推断出副本上的 x 的值先等于 1 然后等于 2. 但实际上没有操作是能够瞬时完成的，即便是 CPU 访问内存也需要一定的时间。如果不强调操作是原子的，即使只有一个节点，并发操作也有可能返回非预期的结果。</p>
+</blockquote>
+<blockquote>
+<p>回想在单台计算机进行并发编程时，我们仍然需要一些同步原语才能实现线性一致性。原因是，当我们在现代多核 CPU 上运行多线程程序时，由于 CPU 访问缓存速度比内存快得多，所以每个 CPU 核都有自己的缓存，这其实也构成了一个多副本的情况。假如一个线程先对某个变量执行写操作，随后不久另一个线程对该变量执行读操作，在没有任何锁之类的同步原语的情况下，后执行的读操作并不一定能读到先于它的写操作写入的值。这在编写多线程程序时是很常见的现象。</p>
+</blockquote>
+<blockquote>
+<p>综上所述，线性一致性必须强调操作是原子的。开头提到，线性一致性也叫作原子一致性，它们的联系就在这里。在单台计算机上为了实现一致性，硬件会提供一些底层原语(内存屏障等)，操作系统也会根据底层原语封装一些常用的同步原语，最后大多数编程语言都实现了同步原语和原子变量，方便开发者在并发编程时实现线性一致性。</p>
+</blockquote>
+<p><font color=red>在一个线性一致的系统中，只要一个客户端成功完成写操作，后面所有客户端从数据库中读取数据必须能够看到刚刚写入的值。要维护数据的单个副本的假象，系统应当保障读到的值是最近的、最新的，而不是来自陈旧的缓存或副本。换句话说，线性一致性<strong>是一个新鲜度保证（recency guarantee）</strong></font>。</p>
+<h3 id="线性一致性判定"><a href="#线性一致性判定" class="headerlink" title="线性一致性判定"></a>线性一致性判定</h3><p>上面给出了线性一致性的直观理解：单副本假象和原子操作。但应该如何判断一个系统是否实现了线性一致性呢？假设系统只有读操作和写操作，一个操作可以分为调用和响应两个事件，调用一定发生在响应之前，每个调用之后紧跟着相应的响应。记一系列操作（调用和响应事件）组成一个执行历史，如下图（图中的黑色线段表示一个操作持续的时间，注意这是一个原子操作）：<br><img src="/img/consistency-model/3.png" srcset="/img/loading.gif" lazyload><br>甲是一个无并发的包含多次读写操作的执行历史，请求总是一个接一个顺序执行的，推断这种情况下的执行历史的合法性非常容易，因为没有并发，只需要按顺序检查每个操作的响应是否正确即可，图中初始情况时，x&#x3D;0，客户端执行 write(x&#x3D;1)，write(x&#x3D;3)，然后在读出 x&#x3D;3，符合逻辑，所以是正确的。</p>
+<p>乙描述了更复杂的情况，包含并发，执行历史就如图中那样，对于这类的情况就需要一个理论来判断它是否满足线性一致。</p>
+<p>线性一致性的严格定义：<font color=red>给定一个执行历史，执行历史根据并发操作可以拓展为多个顺序历史，只要能从中找到一个合法的顺序历史，那么该执行历史就是线性一致的</font>。合法就是指在这个拓展的顺序历史中，各个操作的响应符合逻辑。</p>
+<p><strong>如何拓展呢</strong>？如果两个操作是顺序关系，那么拓展后保持该关系不变，若是并发关系，则可以按任一顺序排列。如上图可以拓展成下面两个顺序历史，其中 S2 是合法的，所以上图乙的执行历史是满足线性一致的。<br><img src="/img/consistency-model/4.png" srcset="/img/loading.gif" lazyload></p>
+<p>总的来说，<u>线性一致性主要有两个约束</u>：① 顺序历史中的任何一次读必须读到最近一次写入的数据；② 顺序历史要跟全局时钟下的顺序一致。正因为有了全局时钟才可能知道哪些操作是顺序的哪些是并发的。</p>
+<h3 id="实现线性一致性"><a href="#实现线性一致性" class="headerlink" title="实现线性一致性"></a>实现线性一致性</h3><ul>
+<li>优化过的共识算法，如 raft + readlIndex &#x2F; lease + 处理客户端重复请求。</li>
+</ul>
+<h2 id="顺序一致性"><a href="#顺序一致性" class="headerlink" title="顺序一致性"></a>顺序一致性</h2><p>顺序一致性（sequential consistency）是一种比线性一致性弱一些的模型。顺序一致性同样允许对并发操作历史进行重新排列，但它的约束比线性一致性要弱，只要求同一个客户端&#x2F;进程的操作在排列后保持先后顺序不变，不同客户端&#x2F;进程之间的操作顺序不做要求。</p>
+<p>以下图为例子：</p>
+<blockquote>
+<p><img src="/img/consistency-model/5.png" srcset="/img/loading.gif" lazyload><br>在线性一致性要求下，该执行历史只能得到一种顺序历史，且该顺序历史不满足线性一致性。但顺序一致性允许不同客户端之间的操作可以改变先后顺序，所以执行历史可以拓展为下面的顺序历史：<br><img src="/img/consistency-model/6.png" srcset="/img/loading.gif" lazyload><br>该顺序历史明显是合法的，所以上面的执行历史满足顺序一致性。</p>
+</blockquote>
+<br>
+
+<p><u>顺序一致性与线性一致性的主要区别在于没有全局时间的限制，它只关心局部（进程&#x2F;客户端内部）操作的顺序</u>。有时顺序一致性往往更实用。例如，在一个社交网络应用中，一个人通常不关心他看到的所有朋友的帖子顺序，但对于具体的某个朋友，以正确的顺序显示该朋友发的贴子会更符合逻辑。</p>
+<h2 id="因果一致性"><a href="#因果一致性" class="headerlink" title="因果一致性"></a>因果一致性</h2><p>因果一致性（Causal Consistency）是一种比顺序一致性更弱一些的模型，它与顺序一致性一样不依赖于全局操作的顺序。因果一致性要求，必须以相同的顺序看到因果相关的操作，而没有因果关系的并发操作可以被不同的进程以不同的顺序观察到。</p>
+<p>最典型的因果关系就是社交网络中的发帖和评论关系，根据因果关系，必须先有发帖才能有对于该帖子的评论，所以发帖操作必然在评论操作之前。</p>
+<p>因果一致性的关键是体现了“发生于⋯⋯之前（happened before）”的关系。为了维持因果性，你需要知道哪个操作发生在哪个其他操作之前。这是一个偏序（指集合内部分元素可比较大小，并不是全部元素都可以比较）：并发操作可以以任意顺序进行，但如果一个操作发生在另一个操作之前（有因果关系），那它们必须在所有副本上以那个顺序被处理。因此，当一个副本处理一个操作时，它必须确保所有因果前驱的操作（之前发生的所有操作）已经被处理；如果前面的某个操作丢失了，后面的操作必须等待，直到前面的操作被处理完毕。</p>
+<p>逻辑时钟（或兰伯特时间戳）可以用来维持因果顺序。</p>
+<h2 id="最终一致性"><a href="#最终一致性" class="headerlink" title="最终一致性"></a>最终一致性</h2><p>还有一些应用，它们的操作没有因果关系，允许使用更宽松的一致性模型，只要系统最终能够达到一个稳定的状态。在某个阶段，系统各节点处理客户端的操作顺序可以不同，读操作也不需要返回最新的写操作的结果。在最终的状态下，只要不再执行写操作，读操作将返回相同的、最新的结果，这就是最终一致性（Eventual Consistency）模型。</p>
+<p>最终一致性是最弱的一致性模型之一，所谓最终，并没有指定系统必须达到稳定状态的硬性时间，这听起来很不可靠，但是在实践中，这个模型工作得很好，当下许多追求高性能的分布式存储系统都是使用最终一致性模型的，例如 Dynamo.</p>
+<blockquote>
+<p>tips: 采用最终一致性的系统都必须要有冲突检测机制、数据恢复方法。</p>
+</blockquote>
+<br>
+
+<p>由于最终一致性是一个比较笼统的说法，所以并没有具体地归为某一类，也没有在最开始的一致性模型图中画出来。</p>
+<h2 id="单调读一致性"><a href="#单调读一致性" class="headerlink" title="单调读一致性"></a>单调读一致性</h2><p>单调读（Monotonic Read）一致性模型是一种简单的以客户端为中心的一致性模型，<u>单调读一致性必须满足</u>：如果客户端读到关键字 x 的值为 v，那么该客户端对于 x 的任何后续的读操作必须返回 v 或比 v 更新的值，也就是要保证客户端不会读到旧值。</p>
+<p>考虑下面一个例子：</p>
+<blockquote>
+<p>如果副本分布在不同的数据中心，很难保证来自不同设备的连接会路由到同一数据中心。如果用户从不同从库进行多次读取，可能发生<strong>时光倒流异常</strong>：用户 A 两次进行相同的查询，首先查询了一个延迟很小的从库，然后是一个延迟较大的从库（如果用户刷新网页，而每个请求被路由到一个随机的服务器，这种情况是很有可能的。）第一个查询返回最近由用户 B 添加的评论，但是第二个查询不返回任何东西，因为滞后的从库还没有复制更新。在效果上相比第一个查询，第二个查询是在<u>更早的时间点</u>来观察系统。如果第一个查询没有返回任何内容，那问题并不大，因为用户 A 可能不知道用户 B 最近添加了评论。但如果用户 A 先看见用户 B 的评论，然后又看到它消失，那么对于用户 A，就很让人头大了。</p>
+</blockquote>
+<br>
+
+<p>单调读保证这种异常不会发生。实现单调读取的一种方式是确保每个用户总是从同一个副本进行读取（不同的用户可以从不同的副本读取）。例如，可以基于用户 ID 的散列来选择副本，而不是随机选择副本。但是如果该副本失败，用户的查询将需要重新路由到另一个副本。</p>
+<h2 id="单调写一致性"><a href="#单调写一致性" class="headerlink" title="单调写一致性"></a>单调写一致性</h2><p>单调写（Monotonic Write）一致性模型是一种简单的以客户端为中心的一致性模型，<u>它必须满足</u>：同一个客户端&#x2F;进程的写操作在所有的副本上都以同样的顺序执行，也就是要保证客户端的写操作是串行的。例如，客户端先执行写操作 x&#x3D;0，然后再执行 x&#x3D;1，如果有另外一个客户端不停地读 x 的值，那么有可能会先读到 x&#x3D;0，然后 x&#x3D;1，但绝不可能先读到 x&#x3D;1，再读到 x&#x3D;0.</p>
+<h2 id="读己之写一致性"><a href="#读己之写一致性" class="headerlink" title="读己之写一致性"></a>读己之写一致性</h2><p>读己之写（Read My Write）一致性模型是一种简单的以客户端为中心的一致性模型，<u>该一致性要求</u>：当写操作完成后，在同一副本或其他副本上的读操作必须能够读到新写入的值。</p>
+<p>许多应用让用户提交一些数据，然后查看他们提交的内容。可能是用户数据库中的记录，也可能是对讨论主题的评论，或其他类似的内容。提交新数据时，必须将其发送给领导者，但是当用户查看数据时，可以从追随者读取。如果数据经常被查看，但只是偶尔写入，这是非常合适的。一个违反读己之写的例子如下图：</p>
+<blockquote>
+<p><img src="/img/consistency-model/7.png" srcset="/img/loading.gif" lazyload><br>客户端向副本 1 执行 x&#x3D;1 写操作成功后，发起读请求查看自己的更新，读请求被路由到了副本 2，但由于副本 2 还未从副本 1 处同步数据，所以读到了旧数据。</p>
+</blockquote>
+<br>
+
+<p>这是一个保证，如果用户重新加载页面，他们总会看到他们自己提交的任何更新。它不会对其他用户的写入做出承诺：其他用户的更新可能稍等才会看到。</p>
+<h2 id="PRAM-一致性"><a href="#PRAM-一致性" class="headerlink" title="PRAM 一致性"></a>PRAM 一致性</h2><p>PRAM（Pipelined RAM）一致性也称为 FIFO 一致性，直译为“流水线随机访问存储器一致性”，它由单调读、单调写和读你所写三个一致性模型组成。<u>PRAM 一致性要求</u>：同一个客户端的多个写操作，将被所有的副本按照同样的执行顺序观察到，但不同客户端发出的写操作可以以不同的执行顺序被观察到。一个违法 PRAM 一致性的例子如图所示：</p>
+<blockquote>
+<p><img src="/img/consistency-model/8.png" srcset="/img/loading.gif" lazyload><br>图中，对于客户端 A 的操作，在副本 1 上的顺序是先存款 20 元再取款 10 元，可是在副本 2 上的顺序却是先取款 10 元再存款 20 元，假如此时客户端 B 去读取副本 2 上的余额，在某个时间可能会查到余额为 -10，这显然是违反常理的。</p>
+</blockquote>
+<h2 id="读后写一致性"><a href="#读后写一致性" class="headerlink" title="读后写一致性"></a>读后写一致性</h2><p>最后一种以客户端为中心的一致性模型是读后写（Write Follow Read）一致性模型，<u>读后写一致性要求</u>：同一个客户端对于数据项 x，如果先读到了写操作 w1 的结果 v，那么之后的写操作 w2 保证基于 v 或比 v 更新的值。读后写一致性其实还约束了写操作的顺序，写操作 w1 一定发生在 w2 之前。</p>
+<p>举个例子，一个用户先阅读到某篇文章，再对该文章发表评论，那么该用户发表评论的操作一定在文章被发表的操作之后。读后写一致性看起来跟因果一致性非常相似，只不过是以单个客户端为视角。</p>
+<h2 id="一致性与隔离性的比较"><a href="#一致性与隔离性的比较" class="headerlink" title="一致性与隔离性的比较"></a>一致性与隔离性的比较</h2><p>一致性和隔离级别对任何数据系统(无论是不是分布式的)来说都是非常重要的两个概念. 下面对一致性和隔离级别进行一个总结性的对比。</p>
+<p>一致性模型和隔离级别的<strong>相同点是</strong>，它们本质上都是用来描述系统能够容忍哪些行为，不能容忍哪些异常行为，更严格的一致性模型或隔离级别意味着更少的异常行为，但以降低系统性能和可用性为代价。</p>
+<p>一致性模型和隔离级别的一个<strong>主要区别是</strong>，一致性模型适用于单个操作对象（如关系数据库的一行、键值数据库的一个 key-val 对或是文档数据库的一个文档），该数据可能存在多个副本；而隔离级别通常涉及多个操作对象，比如在并发事务中修改多个数据。</p>
+<p>对于最严格一致性模型和隔离级别——线性一致性和串行化，<strong>还有一个重要的区别是</strong>，线性一致性提供了实时保证，而串行化则没有。串行化只保证多个并发事务的效果和它们以某种串行顺序执行时的效果一致，至于串行的顺序是否与实时的顺序一样（全局时钟下的顺序），它并没有保证，比如 n 个并发的事务可以产生 $n!$ 中串行顺序。</p>
+<p>事实上，一个数据存储系统可以同时保证线性一致性和串行化，<strong>这类系统称为严格串行化（Strict Serializable）</strong>，这个模型保证了多个事务执行的结果等同于它们的串行执行结果，同时执行顺序与实时排序一致——就像单机单线程程序那样。</p>
+<p>基于两阶段锁定的可串行化实现通常是线性一致性的。但是，可串行化的快照隔离不是线性一致性的，按照设计，它从一致的快照中进行读取，以避免读者和写者之间的锁竞争。一致性快照的要点就在于它不会包括该快照之后的写入，因此从快照读取不是线性一致性的。</p>
+<h2 id="还有话说"><a href="#还有话说" class="headerlink" title="还有话说"></a>还有话说</h2><p>可以将线性一致性、顺序一致性、因果一致性和最终一致性归为<strong>以数据为中心的一致性模型</strong>。以数据为中心的一致性模型旨在为数据存储系统提供一个系统级别的全局一致性视图，讨论这一类一致性模型的角度都是当并发的客户端&#x2F;进程同时更新数据时，考虑系统每个副本的数据是否一致，以及系统提供的一致性。</p>
+<p>而将单调读一致性、单调写一致性、读己之写一致性和 PRAM 一致性归为<strong>以客户端为中心的一致性模型</strong>。这类一致性模型从客户端的角度来观察分布式系统，不再从系统的角度考虑每个副本的数据是否一致，而是考虑客户端的读写请求的结果，从而推断出系统的一致性。</p>
+<p>用一句话来说，以数据为中心的一致性模型常常考虑多个客户端时的系统状态，而以客户端为中心的一致性模型聚焦于单个客户端观察到的系统状态。</p>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>分布式一致性模型</div>
+      <div>http://example.com/2022/08/02/分布式一致性模型/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年8月2日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/08/03/%E4%B8%80%E8%87%B4%E6%80%A7%E5%93%88%E5%B8%8C/" title="一致性哈希">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">一致性哈希</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/07/26/%E8%B6%85%E6%9C%89%E7%94%A8%E7%9A%84%E8%B5%84%E6%BA%90/" title="超有用的资源">
+                        <span class="hidden-mobile">超有用的资源</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

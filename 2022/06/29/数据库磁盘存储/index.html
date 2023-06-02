@@ -1,0 +1,836 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="前言本文主要介绍关系型数据库的一张表在磁盘中是如何存储的。 绝大多数数据库系统将一张表（relation）存储在一个或多个文件中（file），由于 file 可能很大，为方便元组（tuple，也称 record）的增删改查，file 内部又被分为了多个 page（或 block，一般 4KB-8KB），真正的元组存储在 block 中。同时 block 也是内存和磁盘之间的数据传输单位。 以上的结">
+<meta property="og:type" content="article">
+<meta property="og:title" content="关系型数据库磁盘存储">
+<meta property="og:url" content="http://example.com/2022/06/29/%E6%95%B0%E6%8D%AE%E5%BA%93%E7%A3%81%E7%9B%98%E5%AD%98%E5%82%A8/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="前言本文主要介绍关系型数据库的一张表在磁盘中是如何存储的。 绝大多数数据库系统将一张表（relation）存储在一个或多个文件中（file），由于 file 可能很大，为方便元组（tuple，也称 record）的增删改查，file 内部又被分为了多个 page（或 block，一般 4KB-8KB），真正的元组存储在 block 中。同时 block 也是内存和磁盘之间的数据传输单位。 以上的结">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/storage_in_disk/1.jpg">
+<meta property="og:image" content="http://example.com/img/storage_in_disk/2.png">
+<meta property="og:image" content="http://example.com/img/storage_in_disk/3.png">
+<meta property="og:image" content="http://example.com/img/storage_in_disk/8.png">
+<meta property="og:image" content="http://example.com/img/storage_in_disk/4.jpg">
+<meta property="og:image" content="http://example.com/img/storage_in_disk/5.png">
+<meta property="og:image" content="http://example.com/img/storage_in_disk/6.jpg">
+<meta property="og:image" content="http://example.com/img/storage_in_disk/7.png">
+<meta property="article:published_time" content="2022-06-29T10:43:25.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.324Z">
+<meta property="article:author" content="gouhongshen">
+<meta property="article:tag" content="数据库文件存储">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/storage_in_disk/1.jpg">
+  
+  
+  
+  <title>关系型数据库磁盘存储 - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="关系型数据库磁盘存储"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-06-29 18:43" pubdate>
+          2022年6月29日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          3.5k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          39 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">关系型数据库磁盘存储</h1>
+            
+            <div class="markdown-body">
+              
+              <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>本文主要介绍关系型数据库的一张表在磁盘中是如何存储的。</p>
+<p>绝大多数数据库系统将一张表（relation）存储在一个或多个文件中（file），由于 file 可能很大，为方便元组（tuple，也称 record）的增删改查，file 内部又被分为了多个 page（或 block，一般 4KB-8KB），真正的元组存储在 block 中。同时 block 也是内存和磁盘之间的数据传输单位。</p>
+<p>以上的结构都是逻辑结构，存储在磁盘时，通常会由多个物理块（比如扇区）连续存储，来表示一个 block.</p>
+<p>后面会依次介绍元组如何组织各个属性值，block 如何存储元组，以及 file 对元组的管理。</p>
+<h2 id="属性值在元组中的存储"><a href="#属性值在元组中的存储" class="headerlink" title="属性值在元组中的存储"></a>属性值在元组中的存储</h2><p>假设创建如下的表：<br><img src="/img/storage_in_disk/1.jpg" srcset="/img/loading.gif" lazyload><br>该表的四个属性有三个是变长的，最简单的一种方式是给每个属性值都分配其声明的最大值，在该例子中为 53 bytes。很多时候，属性值并不能达到其要求的上限，而且还可能存在 null 值，十分浪费空间。</p>
+<p>为满足属性值变长特性，通常采用如下的方式组织一个元组内部的值：<br><img src="/img/storage_in_disk/2.png" srcset="/img/loading.gif" lazyload><br>整个元组分为两部分：头部（header）和实际的数据存储部分，header 用来存储一些元数据，若表的模式确定，其头部大小也就固定了：</p>
+<ul>
+<li><u>空值位图（null bitmap）</u>。除了主键外，其他属性值可能会为 null，空值位图用每一位来表示某一属性值是否为空，若为空该位置 1. 在一些实现中，若属性值为空，则不分配空间，适合空值较多的表；一些实现中，若为空，依然分配空间，读取时忽视即可，如例子（例子中空值位图没有放置在最前面）。</li>
+<li><u>各属性值的偏移与大小数组</u>。由于属性值可能是变长的，所以需要同时记录这些属性值在该元组中的偏移量和大小，如例子（例子中，内存占用固定的 salary 属性值放置在该数组后面）。</li>
+<li><u>可见性标识</u>。用于并发控制，一般是锁标志。</li>
+</ul>
+<p>数据部分的 a, b, c, d 就是实际的属性值。对于大对象的存储，比如图片、视频等，属性值会保存一个指针（如指向另外一个 file 或者 page），然后将大对象存储在其他地方。</p>
+<p><strong>注意</strong>，头部并没有存储表模式信息（schema），因为如何解析一条元组的数据是由数据库上层决定的。当一张表被创建时，其模式信息就保存在了数据库元信息中，当读取一条元组时，就依据这些元信息来解析元组中各属性值。</p>
+<h2 id="元组在-block-中的存储"><a href="#元组在-block-中的存储" class="headerlink" title="元组在 block 中的存储"></a>元组在 block 中的存储</h2><p>在 block 中存储元组（tuple&#x2F;record），slotted-page structure 是用得最多的一种结构，如下图：<br><img src="/img/storage_in_disk/3.png" srcset="/img/loading.gif" lazyload></p>
+<p>可以看出也分为头部 header 和数据部分，头部包含三个部分：</p>
+<ul>
+<li><u>Record 的数量</u>。也就是元组的数量。</li>
+<li><u>空闲空间的结束位置</u>。在插入元组时，由该位置能快速找到空闲空间放置元组。</li>
+<li><u>记录 Record 偏移和大小的 Entry 数组</u>。由于元组的属性值变长，所以尽管属于同一张表，元组同样是变长的，该数组能方便的提取元组。</li>
+</ul>
+<p>当往一个 block 中插入一条 record 时，首先检查空闲空间能否放下该 record（由图很容易计算），若有，则从空闲空间的最后一个字节开始<strong>往头部移动</strong>分配空间给该 record，同时插入一个 entry.</p>
+<p>当从一个 block 中删除一条 record 时，会将指向该记录的 entry 设置为删除（比如将 size，图中 y，设置为 -1），然后移动那些后面插入的 record 覆盖删除的 record。由于总的 record 数量不算太多，移动的代价还能接受。</p>
+<h2 id="元组在文件中的组织方式"><a href="#元组在文件中的组织方式" class="headerlink" title="元组在文件中的组织方式"></a>元组在文件中的组织方式</h2><p>一张表包含一系列元组，由单个或多个文件（如分表）组成，而一个文件又可能存在多个 block，上一节是介绍元组在 block 中如何存储，这一节则是介绍如何为元组选取合适的 block.</p>
+<h3 id="堆文件组织方式"><a href="#堆文件组织方式" class="headerlink" title="堆文件组织方式"></a>堆文件组织方式</h3><p><img src="/img/storage_in_disk/8.png" srcset="/img/loading.gif" lazyload></p>
+<blockquote>
+<p>pages 相当于 blocks</p>
+</blockquote>
+<p>堆文件（heap file）组织方式中，总是将 record 放置到有空闲空间的 block 中（如第一个有空闲空间的 block）。在寻找具有空闲的 block 时，为了避免按顺序扫描所有的属于该文件的 block，绝大多数数据库采用了 free-space map 的结构。</p>
+<p>free-space map 通常是一个整数数组，一个数组元素对应表的一个 block，元素的值与 block 空闲空间比例有关系，该数组存储在某个 block 中，一般在一开始就读进了内存中。如下例子：<br><img src="/img/storage_in_disk/4.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>假设某个表具有 16 个 block，因此 free-space map 具有 16 个元素。假如使用 3-bit 来表示一个数组元素，那么将某个元素存储的值除以 $2^3$ 就能得到该 block 中空闲空间（至少）占据的比例，如元素值为 7 表示该 block 至少有 7&#x2F;8 的比例是空闲的。为何是这样？如果直接存储 $f &#x3D; \frac{block\_free\_space}{block\_total\_space}$ 那么都会为零，所以，存储的实际是 $f*2^n$，$2^n$ 表示该元素能表示的最大的数，如 PostgreSQL 就采用的 8-bit free-space map.</p>
+<p>如果表很大，那么 block 数量也可能很大，free-space map 也就可能很大，为了进一步减少扫描的时间，可以采用多级 free-space map 结构，如下，采用两级：<br><img src="/img/storage_in_disk/5.png" srcset="/img/loading.gif" lazyload><br>很好理解，其实就是将第一级分组，然后选出其中最大的构成第二级，类似折半查找，如果第二级数量依旧庞大，可以继续分下去。</p>
+<p>每当插入元组后，block 的空闲空间比例可能会变小，free-space map 结构也就需要更新，更新的 free-space map 存在于内存中，所以需要将其写入磁盘。然而，每次更新都写磁盘代价高昂，一般采用延迟写（周期性），这样就会导致磁盘的文件过时，若未来得及写磁盘就发生了故障，重启后，free-space map 就记录了过时的数据。不过，这没啥大不了的问题，数据过时导致查找的 block 与实际不符，多来几次也就将过时的信息更新了，当然也可以周期性的扫描 block 来更新该结构。</p>
+<h3 id="序列文件组织方式"><a href="#序列文件组织方式" class="headerlink" title="序列文件组织方式"></a>序列文件组织方式</h3><p>考虑到这样一种场景，某些记录总是以某种方式频繁检索，如某个年龄区间 + 性别，为了实现这样的高效检索，记录一般以检索键（search key）顺序存储。search key 由任何属性或一组属性构成，不一定是主键。</p>
+<p>为了使得它们按 search key 顺序存储，每条记录还会存储下一条记录的位置（指针），检索时按照该指针就能快速检索相关记录；插入时，需要找到该记录的前一条记录，然后修改指针即可；删除时也需要修改指针。这些操作和链表一致。例子如下图：<br><img src="/img/storage_in_disk/6.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>比如，若插入一条记录，则可以按照如下方式：</p>
+<ul>
+<li>定位待插入记录的前一条记录所在的 block. 可以通过记录每个 block 中最大最小 search key 做到。</li>
+<li>如果该 block 有空闲空间，插入，并修改相应的指针，若无，则插入一个 overflow block（就如图片展示的那样），并修改指针。</li>
+</ul>
+<h3 id="散列文件组织方式"><a href="#散列文件组织方式" class="headerlink" title="散列文件组织方式"></a>散列文件组织方式</h3><p>哈希结构通常用在内存中存储数据，它的特点是能够快速定位记录的位置。在内存中，哈希通常是一个指针数组，每个指针是一个链表头，该链表存储定位到该数组元素的实际数据（链地址法），比如数据库在内存中的哈希索引结构。而在 disk-based 哈希中，哈希结构一个 bucket（可以理解为 block） 数组，每个 bucket 存储实际的记录。</p>
+<p>当插入一条记录时，计算该记录的哈希值，$buket\_idx &#x3D; h(r\_key)\ \%\ buket\_num$，然后再将记录插入该 bucket，若 bucket 满了，那么就会新分配一个 bucket 链接在后面作为 overflow bucket，将记录插入新的 bucket 中。</p>
+<p>当查找某条记录时，采用同样的方式计算 bucket_idx，然后在 bucket 及其 overflow bucket 中查找（一般是顺序检索）是否存在。具体结构如下：<br><img src="/img/storage_in_disk/7.png" srcset="/img/loading.gif" lazyload></p>
+<p>之所以会出现 overflow bucket，有以下原因：record_key 分布不均匀，或者是哈希函数选择得不够好，导致某些 bucket 记录特别多，而有些又特别少。一般通过选取好一点的哈希函数，或者通过分配更多 bucket 缓解（如 bucket_num &#x3D; $(n_r &#x2F; f_r) * (1 + d)$，$n_r, f_r$ 分别表示总的记录数和每个 bucket 能够存储的记录数，d 表示一个经验系数，一般取 0.2）。而 record 的数量很多时候根本无法预估，固定分配的哈希结构（static hashing），就可能不能适应记录数量的增减，一般有以下方式解决：</p>
+<ul>
+<li>rehashing. 此方法需要重新计算所有的记录，比较耗时。</li>
+<li>dynamic hashing. 具体见<a href="/2022/06/29/%E7%B4%A2%E5%BC%95%E7%AF%87%E4%B8%80%EF%BC%9A%E5%93%88%E5%B8%8C%E7%B4%A2%E5%BC%95/" title="索引篇一：哈希索引">索引篇一：哈希索引</a></li>
+<li>采用其他结构。</li>
+</ul>
+<h3 id="B-tree-文件组织方式"><a href="#B-tree-文件组织方式" class="headerlink" title="B+ tree 文件组织方式"></a>B+ tree 文件组织方式</h3><p>B+ tree 文件组织方式，见 <a href="/2022/06/29/%E7%B4%A2%E5%BC%95%E7%AF%87%E4%BA%8C%EF%BC%9AB-plus%20Tree/" title="索引篇二：B-plus Tree">索引篇二：B-plus Tree</a></p>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" class="category-chain-item">数据库</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/%E6%95%B0%E6%8D%AE%E5%BA%93%E6%96%87%E4%BB%B6%E5%AD%98%E5%82%A8/">#数据库文件存储</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>关系型数据库磁盘存储</div>
+      <div>http://example.com/2022/06/29/数据库磁盘存储/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年6月29日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/06/30/%E7%B4%A2%E5%BC%95%E7%AF%87%E4%B8%89%EF%BC%9ALSM%20Tree/" title="索引篇三：LSM Tree">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">索引篇三：LSM Tree</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/06/29/%E7%B4%A2%E5%BC%95%E7%AF%87%E4%BA%8C%EF%BC%9AB-plus%20Tree/" title="索引篇二：B-plus Tree">
+                        <span class="hidden-mobile">索引篇二：B-plus Tree</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

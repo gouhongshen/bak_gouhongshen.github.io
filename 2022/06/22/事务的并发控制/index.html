@@ -1,0 +1,1009 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="前言在事务篇一：事务总论中介绍了事务基本概念和具有特性，在事务篇二：事务的可串行化中介绍了调度要具备何种性质，才能在并发事务执行后使系统处于一致性状态和事务失败后能让系统回到安全状态，还论证了隔离性与一致性的关系。 并发控制的工作就是，在事务并发时，确保只会产生具备这种性质的调度方案，具体地，并发控制策略的目标是同时保证两点：  使系统具有较高的事务并发度 确保生成的调度方案，同时是冲突可串行化（">
+<meta property="og:type" content="article">
+<meta property="og:title" content="事务篇三：事务的并发控制">
+<meta property="og:url" content="http://example.com/2022/06/22/%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%B9%B6%E5%8F%91%E6%8E%A7%E5%88%B6/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="前言在事务篇一：事务总论中介绍了事务基本概念和具有特性，在事务篇二：事务的可串行化中介绍了调度要具备何种性质，才能在并发事务执行后使系统处于一致性状态和事务失败后能让系统回到安全状态，还论证了隔离性与一致性的关系。 并发控制的工作就是，在事务并发时，确保只会产生具备这种性质的调度方案，具体地，并发控制策略的目标是同时保证两点：  使系统具有较高的事务并发度 确保生成的调度方案，同时是冲突可串行化（">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/concurrency-control/txn-3.jpg">
+<meta property="og:image" content="http://example.com/img/concurrency-control/multiple-granularity.jpg">
+<meta property="og:image" content="http://example.com/img/concurrency-control/snapshot-isolation-1.jpg">
+<meta property="og:image" content="http://example.com/img/concurrency-control/snapshot-isolation-2.jpg">
+<meta property="article:published_time" content="2022-06-22T08:29:21.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.313Z">
+<meta property="article:author" content="gouhongshen">
+<meta property="article:tag" content="事务">
+<meta property="article:tag" content="mvcc">
+<meta property="article:tag" content="snapshot">
+<meta property="article:tag" content="two-phase-locking">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/concurrency-control/txn-3.jpg">
+  
+  
+  
+  <title>事务篇三：事务的并发控制 - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="事务篇三：事务的并发控制"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-06-22 16:29" pubdate>
+          2022年6月22日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          6.7k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          75 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">事务篇三：事务的并发控制</h1>
+            
+            <div class="markdown-body">
+              
+              <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>在<a href="/2022/06/22/%E4%BA%8B%E5%8A%A1%E6%80%BB%E8%AE%BA/" title="事务篇一：事务总论">事务篇一：事务总论</a>中介绍了事务基本概念和具有特性，在<a href="/2022/06/22/%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%8F%AF%E4%B8%B2%E8%A1%8C%E5%8C%96/" title="事务篇二：事务的可串行化">事务篇二：事务的可串行化</a>中介绍了调度要具备何种性质，才能在并发事务执行后使系统处于一致性状态和事务失败后能让系统回到安全状态，还论证了隔离性与一致性的关系。</p>
+<p><strong>并发控制的工作就是，在事务并发时，确保只会产生具备这种性质的调度方案</strong>，具体地，并发控制策略的目标是同时保证两点：</p>
+<ul>
+<li>使系统具有较高的事务并发度</li>
+<li>确保生成的调度方案，同时是冲突可串行化（conflict serializable），可恢复（recoverable）和非失败连锁式（cascadeless）的。</li>
+</ul>
+<p>并发控制策略有许多，<font color=red>本文主要集中在两阶段加锁（two-phase locking）和快照隔离（snapshot isolation）</font>。介绍完这两个并发控制协议后，再讨论各个隔离级别的实现，如何避免事务总论中提到的现象。</p>
+<h2 id="Two-Phase-Locking-Protocol"><a href="#Two-Phase-Locking-Protocol" class="headerlink" title="Two-Phase Locking Protocol"></a>Two-Phase Locking Protocol</h2><p>为了简单，目前讨论的事务只有两种操作：访问（read）和更新（write），实际上还有如：插入（insert）、删除（delete）和含条件的读取（predicate read），它们会放在以后慢慢讨论。</p>
+<p>同时，现在只讨论操作针对的是单个数据（如元组），这其实是锁的粒度问题，后面会讨论大粒度锁的情况。</p>
+<p>为此，最简单的锁具有两种模式：</p>
+<ul>
+<li>共享锁（shared-mode lock: S） </li>
+<li>排他锁（exclusive-mode lock: X）</li>
+</ul>
+<p>在基于锁的的协议中，执行 read 操作时会对数据加共享锁，执行 write 操作时会对数据加排他锁，两种锁的相容性（compatibility）如下：</p>
+<table>
+<thead>
+<tr>
+<th align="center"></th>
+<th align="center">S</th>
+<th align="center">X</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">S</td>
+<td align="center">true</td>
+<td align="center">false</td>
+</tr>
+<tr>
+<td align="center">X</td>
+<td align="center">false</td>
+<td align="center">false</td>
+</tr>
+</tbody></table>
+<p><img src="/img/concurrency-control/txn-3.jpg" srcset="/img/loading.gif" lazyload alt="事务3"></p>
+<h3 id="两阶段加锁协议"><a href="#两阶段加锁协议" class="headerlink" title="两阶段加锁协议"></a>两阶段加锁协议</h3><p><font color=dark-green>基础版两阶段加锁协议</font><br>该协议要求一个事务请求加锁和释放锁分别集中在两个阶段：</p>
+<ul>
+<li>growing phase. 该阶段事务可以申请加锁，而不能释放任何锁</li>
+<li>shrinking phase. 该阶段事务可以释放锁，但不能申请新的锁</li>
+</ul>
+<p>如图事务3满足两阶段加锁要求，需要注意，基本的两阶段加锁协议并不要求所有的释放锁操作都必须放在最后，如事务3将 unlock(B) 可以移到 lock-X(A) 后面，仍然满足两阶段加锁的定义。</p>
+<br>
+
+<p><font color=dark-green>基础版两阶段加锁协议的特点</font>：</p>
+<ul>
+<li><u>保证了 conflict serializability</u>. 假设一个调度内的事务都遵守该两阶段假设协议，同时将事务 growing phase 获取到的最后一个锁的位置定义为 lock-point，那么各个事务就可以根据其 lock-point 排序，该顺序一定是可串行化的。（证明：可以构造该调度的先行图，先行图有两种可能，要么无环，要么有环。若无环调度冲突可串行化；若有环，事务必然是相互等待对方到达 shrinking phase 释放冲突的锁，这是死锁。）</li>
+<li><u>可能存在死锁</u>。如上</li>
+<li><u>不能保证 recoverable 和 cascadeless rollback</u>.</li>
+</ul>
+<p>先行图、recoverable 和 cascadeless 的定义见<a href="/2022/06/22/%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%8F%AF%E4%B8%B2%E8%A1%8C%E5%8C%96/" title="事务篇二：事务的可串行化">事务篇二：事务的可串行化</a></p>
+<br>
+
+<p><font color=dark-green>如何保证 recoverable 和 cascadeless？</font><br>这里引入两种升级版两阶段加锁协议，一步到位之间使得满足这些协议的调度满足 cascadeless（自然就满足了 recoverable）。</p>
+<p><strong>Strict Two-Phase Locking Protocol</strong>:<br>在基础版两阶段加锁协议上，增加了这样一条要求，所有的 exclusive-mode lock 必须要等到事务提交之后再释放。</p>
+<p><strong>Rigorous Two-Phase Locking Protocol</strong>：<br>在基础版两阶段加锁协议上，增加了这样一条要求，所有的 lock 必须要等到事务提交之后再释放。</p>
+<p>解释下为什么满足 cascadeless：</p>
+<blockquote>
+<p>cascadeless 要求，若事务 A 依赖事务 B（事务 A 读取了事务 B 所做的更新），事务 A 必须要等事务 B 体提交后才能执行依赖的操作，由于事务 B 会拥有排它锁直到提交，自然就满足了这个要求。</p>
+</blockquote>
+<p>这两种方式被广泛用于商业数据库系统中，也就是锁的释放通常要等到事务完成（提交或中止）。</p>
+<br>
+
+<p><font color=dark-green>如何处理死锁？</font><br>事务存在循环等待即进入了死锁，处理死锁一般有两种思路，这两种思路都会涉及到事务的回滚：</p>
+<ul>
+<li><u>死锁避免</u>。该思路是让系统永远不会进入死锁状态，一般用于死锁发送频率高的场景中。</li>
+<li><u>死锁检测 + 恢复</u>。该思路是在死锁发生后在人为干预，解除死锁状态，一般用于死锁发生频率较低的场景。</li>
+</ul>
+<h3 id="死锁避免"><a href="#死锁避免" class="headerlink" title="死锁避免"></a>死锁避免</h3><p>实现死锁避免也有许多思路：</p>
+<ul>
+<li><u>破除循环等待条件</u>。实现方法有 1)通过给所有数据规定一个次序，加锁只能按该顺序加锁；2)事务开始之前完成对所有数据的加锁。最大的问题在于，如何准确的知道事务会涉及哪些数据。</li>
+<li><u>基于抢占和回滚事务方式</u>。抢占很好理解，当两个事务发生冲突了，优先级高的事务可以让优先级低的事务回滚，下面主要介绍这种方式。</li>
+</ul>
+<p><font color=dark-green>基于抢占和回滚事务方式的死锁避免算法</font><br>抢占需要确定优先级，下面的两个算法采用时间戳（timestamp）的方式决定优先级的大小。每个事务在其开始时得到一个时间戳，时间戳越小，代表事务越老，若事务回滚重新开始，那么它保持时间戳不变。注意，该时间戳只用于两个事务发生锁冲突时：</p>
+<ul>
+<li><u>wait-die 算法</u>。当事务 TA 对某个数据加锁时，发现事务 TB 已经已经持有该数据的排它锁，若 TA 时间戳小于 TB 的时间戳，那么 TA 更老，选择等待；若 TA 的时间戳更大，则 TA 回滚。很明显，该算法不涉及抢占。该算法为何能避免死锁？因为它避免了循环等待的条件，假设形成了环，环首持有环尾需要的锁，那么环尾会直接回滚，矛盾。</li>
+<li><u>wound-wait</u>。和上个算法不同的是，该算法涉及抢占，若 TA 的时间戳更小（TA 更老），那么 TA 会直接抢占该锁，TB 则回滚；若 TA 的时间戳更大，则 TA 等待。其避免死锁的证明同上。</li>
+</ul>
+<p>以上两个算法最大的缺点在于可能会造成不必要的回滚，一个简单的优化是在回滚之前先等待一段时间，不过这段时间对每个事务最好是随机的，而且其长度难以确定。</p>
+<p>死锁检测与恢复不想写了，有时间再写吧。</p>
+<h3 id="更丰富的锁粒度"><a href="#更丰富的锁粒度" class="headerlink" title="更丰富的锁粒度"></a>更丰富的锁粒度</h3><p>一个简单的例子，当锁粒度只有元组时，一个事务想更新一张表，那它就必须对表的所有元组加锁，显然不合适，反之，若只更新几个元组，用不上对整张表加锁。</p>
+<p>多粒度一般采用分级结构实现，该结构可以称为 multiple-granularity tree，如下图：<br><img src="/img/concurrency-control/multiple-granularity.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>（未完待续）</p>
+<h2 id="Snapshot-Isolation"><a href="#Snapshot-Isolation" class="headerlink" title="Snapshot Isolation"></a>Snapshot Isolation</h2><p>快照隔离（snapshot isolation）属于多版本并发控制技术的一种。多版本并发技术通过维护一份数据的多个版本，让事务可以访问（read）数据的最新的已提交版本，而不是当前未提交事务正在修改的版本（该未提交事务可能更老，即开始于当前事务之前；也可能发生在未来，即如果按照串行执行，当前事务本应该看不到后面事务的更新，但并发执行，就有可能了）。</p>
+<p>版本的概念并不容易理解，后面详细介绍 snapshot 后，再理解它在 percolator 的实现，这样就清楚得多了。</p>
+<br>
+
+<p><font color=dark-green>基本概念</font><br>当事务开始执行时，数据库给该事务一个 snapshot，里面包含的是该事务需要的、最新的已被提交的数据，之后该事务对数据的所有操作都在该 snapshot 上操作（该 snapshot 暂存在事务私有内存中，其他事务不可见）。对于只读事务，操作完就可以结束了（提交或者失败），不需要等待，也不会因为并发而被回滚；对于更新事务，它还需要将更新写入数据库（写入应当是一个原子操作），因此还涉及到一个验证步骤，后面会详细结束。</p>
+<p>在快照隔离中，只读事务不需要等待，也不会 abort，<font color=red>那会不会有不可重复读的可能呢？毕竟多次读取，可不可能在某一次就读到了刚刚被更新的值呢？</font>不会的，因为读取到快照后，该快照被该事务独享（或者说被只读事务共享），不会涉及到更新。</p>
+<br>
+
+
+<p><font color=dark-green>实现细节</font><br>该协议给进入系统的每个事务两个时间戳：</p>
+<ul>
+<li><u>startTS</u>. 在事务开始时获取</li>
+<li><u>commitTS</u>. 在事务准备写入更新到数据库时获取（或者是开始验证阶段时获取）</li>
+</ul>
+<p>每个被更新的数据都带有一个时间戳（即数据的版本号），它等于执行该更新事务的 commitTS，也就是说同一份数据可能存在多个版本。时间可以是系统时间，也可以是逻辑时间（计数器），只要保证不会存在相同的时间戳即可。</p>
+<p>当一个事务 TA 读取一个数据时，读取到的数据具有这样的特点：在所有版本号小于等于 startTS(TA) 的数据中具有<strong>最大的版本号</strong>。从事务角度理解，一个事务看不到，任何在该事务开始之后提交的事务所作的更新。</p>
+<br>
+
+<p><font color=dark-green>更新验证阶段</font><br>按照上面所说，事务读取数据后各自操作，其他事务感知不到，那么就可能会出现两个并发的事务更新同一个数据，如果允许这两个事务都修改数据库，那么就会发生值覆盖，也就是更新丢失（lost update）。如何解决冲突，是验证阶段的工作。</p>
+<p>一般有两种方法可以防止更新丢失，介绍之前先看一下 snapshot isolation 中的并发定义，若 TA 和 TB 的更新存在交集，当下面情况中任一发生时，就说事务 TA 和 TB 并发：</p>
+<ul>
+<li>startTS(TA) &lt;&#x3D; startTS(TB) &lt;&#x3D; commitTS(TA)</li>
+<li>startTS(TB) &lt;&#x3D; startTS(TA) &lt;&#x3D; commitTS(TB)</li>
+</ul>
+<p><strong>第一种方法称为先提交先获胜（first committer wins）</strong>. </p>
+<blockquote>
+<p>在该方式中，当事务 TA 来到验证阶段时，先获取提交时间戳 commitTS(TA)，然后执行下面的步骤：</p>
+<ul>
+<li>检查<u>每一个</u> TA 更新的数据，看该数据是否已经存在一个落在 [startTS(TA), commitTS(TA)] 区间的版本。</li>
+<li>如果存在这样的数据，TA abort.</li>
+<li>如果<u>所有数据</u>都通过检查，TA 将其更新写入数据库，然后提交。</li>
+</ul>
+</blockquote>
+<br>
+
+<p><strong>第二种方法称为先更新先获胜（first updater wins）</strong>. </p>
+<blockquote>
+<p>在该方式中，当事务 TA 尝试更新一个数据时，先获取该数据的排它锁，<u>如果该锁获取成功</u>，执行下列步骤：</p>
+<ul>
+<li>如果该数据已经被并发事务更新了（也可以通过获取一个时间戳来判断），则 TA abort.</li>
+<li>如果该数据没有被并发事务更新，则 TA 写入更新到数据库（结合其时间戳），然后继续其常规流程。</li>
+</ul>
+<p>但是，如果该数据的排它<u>锁已经被并发事务 TB 持有</u>，TA 选择等待下面的事情发生：</p>
+<ul>
+<li>TB abort，则 TA 就可以再次申请该锁，重复上述步骤。</li>
+<li>TB commit，则 TA 只有 abort 了。</li>
+</ul>
+<p>这个过程获取的排它锁会一直持有直到事务提交或中止</p>
+</blockquote>
+<br>
+
+<p><u>比较一下这两种方式</u>，先提交先获胜其实是将所有更新操作本地执行完后，统一提交时刻验证，可以将其所有的数据验证看成一个原子操作，这也是为什么它叫做先提交先获胜。先更新先获胜中，只要是更新某个数据，就进入验证阶段，每一个数据的更新都会有一个验证步骤。如果发生冲突了，先提交先获胜不会回滚数据库中的更新，而先更新先获胜则会。</p>
+<blockquote>
+<p>tips：多版本并发控制是一种乐观并发控制。何为乐观？先对数据执行操作，更新时才检测是否冲突。何为悲观？先对要操作的数据加锁，再对数据执行操作。上面的两种方式都属于乐观派，在 TiDB 的悲观 MVCC 实现中，当 SQL 语句被解析后就对涉及到的数据加锁，然后再开始乐观的 MVCC，具体见<a target="_blank" rel="noopener" href="https://docs.pingcap.com/zh/tidb/stable/pessimistic-transaction">文章</a>。</p>
+</blockquote>
+<br>
+
+<p><font color=dark-green>Snapshot Isolation 问题与解决</font><br>snapshot isolation 吸入的地方在于，读写分离，互不干扰。<strong>但它有一个致命的缺陷：不保证可串行化（serializability）</strong>，如下例子：<br><img src="/img/concurrency-control/snapshot-isolation-1.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>如果构造该例子的先行图，会发现存在环：该调度非冲突可串行化。在两阶段加锁协议中该调度会产生死锁，不可能顺利执行下去。然而，在快照隔离策略中却可以执行、提交。如果这两个事务以可串行化的调度方案并发，那么 A、B 的值是一样的，具体的值取决于谁先执行，而快照隔离的结果却是将它们的值交换。</p>
+<p><strong>这种现象被称为写偏斜（write skew）</strong>：两个并发的事务读取了对方会更新的数据，但这两个事务更新的数据却没有交集，如 Ti 读取了会被 Tj 更新的 B，Tj 读取了会被 Ti 更新的 A，而它们分别更新 A 和 B，没有交集，所以在验证阶段无法被检测出来。</p>
+<p><font color=red>发生写偏斜的根本原因是什么？snapshot isolation 不能有效追踪防止 read-write conflict，验证阶段的两个方法都只限制了 write-write conflict</font>. 借助上面例子可以发现，发生写偏斜时，调度方案的先行图存在两条 read-write 冲突边，一条入边，一条出边：对于事务 Ti 写入了 A 的一个新版本，而 Tj 读取了 A 之前的一个版本（Tj -&gt; Ti, read-write edge）；对于事务 Tj 写入了 B 的一个新版本，而 Ti 读取了 B 之前的一个版本（Ti -&gt; Tj, read-write edge）：<br><img src="/img/concurrency-control/snapshot-isolation-2.jpg" srcset="/img/loading.gif" lazyload></p>
+<p><strong>由此，一种称为 Serializable Snapshot Isolation(SSI) 的新技术被提出以保证快照隔离可串行化</strong>。SSI 会追踪并发事务之间的所有 read-write 冲突，检查是否同时存在出边和入边，如果存在，则其中一个事务会被回滚。</p>
+<p>趁热打铁读一读 snapshot isolation 的工业级实现：<a href="/2022/06/18/Percolator-%E9%9A%8F%E7%AC%94/" title="事务篇六：Percolator 随笔">事务篇六：Percolator 随笔</a>呀。</p>
+<h2 id="隔离级别的实现"><a href="#隔离级别的实现" class="headerlink" title="隔离级别的实现"></a>隔离级别的实现</h2><p><font color=dark-green>如何实现读已提交级别？</font><br>读已提交有如下特点：</p>
+<ul>
+<li>从数据库中读时，只会读到已经提交了的数据，即<u>没有脏读（dirty read）</u></li>
+<li>写入数据库时，只会覆盖已经提交的数据，即<u>没有脏写（dirty write）</u></li>
+<li>可能发生不可重复读异常</li>
+</ul>
+<p><strong>何为脏读？</strong>能读取到尚未 commit&#x2F;abort 事务所做的更新，就叫脏读。脏读可能引发只能看到部分更新的问题，比如转账事务提交前就读取余额，很可能会出现账户余额蒸发的怪现象。</p>
+<p><strong>何为脏写？</strong>当两个事务更新同一对象时，通常后者会覆盖前者所做的更新，但若是覆盖的是尚未 commit&#x2F;abort 事务的更新，就叫做脏写。脏写同样会产生问题，考虑自动发送邮件例子，一个事务刚刚填入收件人地址，还未提交，另一个事务却覆盖了这个邮件地址，邮件就会发往错误的地方。</p>
+<p>一般数据库通过行锁（row-level lock）<strong>防止脏写</strong>。当事务想要修改特定对象时，它必须首先获得该对象的排它锁，持有到事务提交或中止。可以通过读锁<strong>防止脏读</strong>，然而该方法中，写事务会阻塞读事务，所以数据库通常会为数据保留一个最近的已提交的旧值，和正在更新的新值，若新值还未提交，任何读事务都会拿到旧值，若新值提交了，就会读到新值（发生不可重复读异常）。</p>
+<br>
+
+<p><font color=dark-green>如何实现读未提交级别？</font><br>读未提交有如下特点：</p>
+<ul>
+<li>写入数据库时，只会覆盖已经提交的数据，即<u>没有脏写（dirty write）</u></li>
+<li>可能发生脏读</li>
+<li>可能发生不可重复读异常</li>
+</ul>
+<p>防止脏写的实现方式和读已提交级别一致。</p>
+<br>
+
+<blockquote>
+<p>不可重复读异常可能引发一致性问题。假设数据库中存在两个字段 A、B，这两个字段需要时时刻刻相等（数据约束）。假设一个并发调度为 T1-read(A), T2-write(A,B), T1-read(B)，如果允许不可重复读异常，那么事务 T1 读取出来的 A 和 B 不满足约束条件，在外部看来这是一个不一致状态。</p>
+</blockquote>
+<br>
+
+<p><font color=dark-green>如何实现可重复读级别？</font><br>可重复读有如下特点：</p>
+<ul>
+<li>没有脏读</li>
+<li>没有脏写</li>
+<li>不会发生不可重复读异常</li>
+<li>若使用快照隔离提供稳定的视图，则不会出现幻读</li>
+</ul>
+<p>读已提交维护数据的两个版本，但可能会读取到已提交的新值，而对于可重复读级别，可以使用快照隔离，让事务始终读取最开始读取的那一个版本，维持稳定的视图，来<strong>防止不可重复读异常，同时也解决了幻读异常</strong>。</p>
+<p>这里再解释下幻读。下面是一张教师（instructor）薪资表：</p>
+<table>
+<thead>
+<tr>
+<th align="center">ID</th>
+<th align="center">name</th>
+<th align="center">salary</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="center">001</td>
+<td align="center">Jery</td>
+<td align="center">1000</td>
+</tr>
+<tr>
+<td align="center">002</td>
+<td align="center">Peter</td>
+<td align="center">2000</td>
+</tr>
+<tr>
+<td align="center">003</td>
+<td align="center">Tim</td>
+<td align="center">3000</td>
+</tr>
+</tbody></table>
+<p>现在执行如下的 SQL 语句：</p>
+<p><strong>select</strong> <em>ID</em>, <em>name</em><br><strong>from</strong> <em>instructor</em><br><strong>where</strong> <em>salary</em> &gt; 1000</p>
+<p>假设当前系统采用可重复读隔离级别，一个用户执行了如上的查询，同时另外一个用户执行了如下的插入语句（删除语句也有如下的效果）：<br><strong><center>insert</strong> <strong>into</strong> <em>instructor</em> <strong>values</strong> (004, James, 4000)</center><br>查询事务读取到多少条的数据取决于它和插入事务的先后顺序，若查询事务多次读取，就有可能发生某次读到的内容比上次多，即发生了幻读。</p>
+<br>
+
+<blockquote>
+<p>幻读异常可能引发一致性问题。假设表中某个数据列与另外一个数据列的数据是一一对应的，系统有这样的并发调度：T1-read(col1 &gt; A), T2-insert(col1&#x3D;A+1, col2&#x3D;A+1), T1-read(col2 &gt; A)，如果允许幻读，那么事务 T1 读出的 col1 &gt; A 的数据条数与 col2 &gt; A 的条数是不一致的。</p>
+</blockquote>
+<br>
+
+<p><font color=dark-green>如何实现可串行化级别？</font><br>采用 SSI 和 两阶段加锁都可以实现。</p>
+<blockquote>
+<p>脏写对一致性的影响实在太严重了，所以所有的隔离级别都不允许脏写的发生。</p>
+</blockquote>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E4%BA%8B%E5%8A%A1/" class="category-chain-item">事务</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/%E4%BA%8B%E5%8A%A1/">#事务</a>
+      
+        <a href="/tags/mvcc/">#mvcc</a>
+      
+        <a href="/tags/snapshot/">#snapshot</a>
+      
+        <a href="/tags/two-phase-locking/">#two-phase-locking</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>事务篇三：事务的并发控制</div>
+      <div>http://example.com/2022/06/22/事务的并发控制/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年6月22日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/06/25/%E4%B8%A4%E9%98%B6%E6%AE%B5%E6%8F%90%E4%BA%A4%E5%8D%8F%E8%AE%AE/" title="事务篇五：两阶段提交协议">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">事务篇五：两阶段提交协议</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/06/22/%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%8F%AF%E4%B8%B2%E8%A1%8C%E5%8C%96/" title="事务篇二：事务的可串行化">
+                        <span class="hidden-mobile">事务篇二：事务的可串行化</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

@@ -1,0 +1,855 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="前言事务的原子性和一致性（数据库数据一致性）的保证，除了在事务代码的编写（逻辑）、事务的调度（并发）上面下功夫外，还需要考虑系统故障的发生。当系统从故障中恢复后，应当正确处理这些异常，以保证事务的原子性和数据的一致性。 一个例子 考虑银行有两个账户 A 和 B，初始账户分别为 1000 和 2000，一个事务负责从账户 A 转账 50 到账户 B。假设故障发生在事务执行过程中，那么有如下可能发生：">
+<meta property="og:type" content="article">
+<meta property="og:title" content="事务篇四：Log-Based Recovery System">
+<meta property="og:url" content="http://example.com/2022/06/22/%E6%95%B0%E6%8D%AE%E5%BA%93%E6%81%A2%E5%A4%8D%E7%B3%BB%E7%BB%9F/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="前言事务的原子性和一致性（数据库数据一致性）的保证，除了在事务代码的编写（逻辑）、事务的调度（并发）上面下功夫外，还需要考虑系统故障的发生。当系统从故障中恢复后，应当正确处理这些异常，以保证事务的原子性和数据的一致性。 一个例子 考虑银行有两个账户 A 和 B，初始账户分别为 1000 和 2000，一个事务负责从账户 A 转账 50 到账户 B。假设故障发生在事务执行过程中，那么有如下可能发生：">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/log-based_recovery_system/1.png">
+<meta property="og:image" content="http://example.com/img/log-based_recovery_system/2.png">
+<meta property="og:image" content="http://example.com/img/log-based_recovery_system/3.png">
+<meta property="og:image" content="http://example.com/img/log-based_recovery_system/4.jpg">
+<meta property="article:published_time" content="2022-06-22T03:55:46.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.324Z">
+<meta property="article:author" content="gouhongshen">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/log-based_recovery_system/1.png">
+  
+  
+  
+  <title>事务篇四：Log-Based Recovery System - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="事务篇四：Log-Based Recovery System"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-06-22 11:55" pubdate>
+          2022年6月22日 中午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          4.8k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          54 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">事务篇四：Log-Based Recovery System</h1>
+            
+            <div class="markdown-body">
+              
+              <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p><img src="/img/log-based_recovery_system/1.png" srcset="/img/loading.gif" lazyload alt="磁盘交互模型"><br>事务的原子性和一致性（数据库数据一致性）的保证，除了在事务代码的编写（逻辑）、事务的调度（并发）上面下功夫外，还需要考虑系统故障的发生。当系统从故障中恢复后，应当正确处理这些异常，以保证事务的原子性和数据的一致性。</p>
+<p><font color=dark-green>一个例子</font></p>
+<p>考虑银行有两个账户 A 和 B，初始账户分别为 1000 和 2000，一个事务负责从账户 A 转账 50 到账户 B。假设故障发生在事务执行过程中，那么有如下可能发生：</p>
+<ol>
+<li>A &#x3D; 950, B &#x3D; 2050</li>
+<li>A &#x3D; 950, B &#x3D; 2000</li>
+<li>A &#x3D; 1000, B &#x3D; 2050</li>
+<li>A &#x3D; 1000, B &#x3D; 2000</li>
+</ol>
+<p>根据磁盘交互模型图可知，事务需要先将需要的数据从 buffer pool 读入自己的私有内存，等到操作完成再将更新后的数据写入 buffer pool，至于这些数据何时会写入磁盘与 buffer pool 页面置换算法有关。上面情况 1 表示一切正常；情况 2 表示含有 A 新值的 block 被正常写入磁盘后系统崩溃；情况 3 表示含有 B 新值的 block 被正常写入磁盘后系统崩溃；情况 4 表示两个 block 都还未写入磁盘就发生故障（当然 A 和 B 可能存在于同一个 block 中）。在情况 2 和 3 中数据库一致性都已被破坏，事务的原子性也未能保证。</p>
+<h2 id="Log-Based-Recovery-System"><a href="#Log-Based-Recovery-System" class="headerlink" title="Log-Based Recovery System"></a>Log-Based Recovery System</h2><p>为了保证事务的原子性和数据的一致性，需要一种方法从故障中恢复被部分修改的数据，目前最广泛使用的方式是：<strong>在更新数据库之前，先将描述修改的信息记录到 stable storage 中的 log 文件里</strong>，等到系统重启后，根据这些信息来恢复数据。这些信息被称为 log records，这个方法被称作 log-based recovery.</p>
+<h3 id="Log-Records-amp-事务流程"><a href="#Log-Records-amp-事务流程" class="headerlink" title="Log Records &amp; 事务流程"></a>Log Records &amp; 事务流程</h3><p>当事务开始时，会向日志中追加一条事务<strong>开始记录</strong> &lt;$T_i\ $start&gt;，$T_i$ 表示事务标识符；在将更新写入数据库之前，会向日志中追加一条<strong>更新记录</strong> &lt;$T_i,\ X_j,\ V_1,\ V_2$&gt;，$X_i,\ V_1,\ V_2$ 分别表示数据标识符（通常用磁盘块号和偏移量）、该数据的旧值和新值；等到事务提交时，会向日志中追加一条<strong>提交记录</strong> &lt;$T_i\ $commit&gt;，如下面例子：<br><img src="/img/log-based_recovery_system/2.png" srcset="/img/loading.gif" lazyload alt="图 2"><br>一旦这些记录被写入了日志文件中，系统就可以将事务的修改应用到数据库中了，就算故障发生，也能根据日志文件重放（replay）这些操作，恢复它们，正因为如此，日志文件必须持久化（写入 stable storage，定义见<a href="/2022/06/22/%E4%BA%8B%E5%8A%A1%E6%80%BB%E8%AE%BA/" title="事务篇一：事务总论">事务篇一：事务总论</a>），以保证永久不丢失。需要注意，$T_0,\ T_1$ 的日志记录可能是相互交叉的。</p>
+<p>现在在细节上更进一步，所谓的将记录追加到日志文件中、更新写入数据库中这些操作实际上包含两个步骤：</p>
+<ol>
+<li>将事务私有内存空间的数据写入某个 buffer block；</li>
+<li>将 buffer block 写到磁盘上。</li>
+</ol>
+<p>第二步由数据库系统执行，发生的时机是不定的，<strong>所以当第一步发生后，就算是对文件和数据库做出了修改</strong>。需要明白，buffer block 中的数据可能会在内存中存在很长一段时间才会被写入磁盘（当然可以让第二步即时生效，但磁盘 I&#x2F;O 代价昂贵，非必须，一般是推迟写磁盘），在这段时间内系统完全有可能发生故障，所以事务提交流程中有一些<font color=red>原则（write-ahead logging, WAL, rule）必须要遵守，以保证事务的原子性</font>：</p>
+<ul>
+<li>事务已提交是指（可以回复客户端了），提交记录 &lt;$T_i\ $commit&gt; 已经被 <em>output</em> 到 stable storage 中。</li>
+<li>在上一步执行之前，该事务的所有其他记录（存在于 log buffer 中）都被 <em>output</em> 到 stable storage 中。</li>
+<li>在数据被 <em>output</em> 到数据库之前，与这些数据更新相关的所有日志记录都已经被 <em>output</em> 到 stable storage 中。</li>
+</ul>
+<p>只要遵守了以上原则，无论是系统崩溃后恢复还是事务的正常 abort，系统都可以根据这些记录将系统恢复到一致状态，事务自然也就保证了原子性。因此日志记录在 log 文件（stable storage）中的<strong>顺序十分重要</strong>，必须和写入 log buffer（buffer block）的顺序一致。</p>
+<h3 id="Recovery-Algorithm"><a href="#Recovery-Algorithm" class="headerlink" title="Recovery Algorithm"></a>Recovery Algorithm</h3><p>在介绍恢复算法之前，先看看事务在正常情况下的流程，第一种是事务因失败需要 abort 回滚；第二种是事务正常提交。</p>
+<p><strong>Case 1: 事务正常提交</strong>。这种情况下事务不需要回滚，日志文件就像图 2 所示那样。</p>
+<p><strong>Case 2：正常 abort，事务回滚</strong>。当事务 $T_i$ 执行到一半时因为某些原因失败需要 abort 回滚（rollback 之后才能算 aborted）。回滚也就是将该事务对数据库所做的修改撤销，系统做如下操作（如图 3 示）：</p>
+<ul>
+<li>系统向后扫描 log 文件（注意 log 文件是只追加的，向前是指追加的方向），对于每一条属于 $T_i$ 的更新记录 &lt;$T_i,\ X_j,\ V_1,\ V_2$&gt;，系统将使用旧值 $V_1$ 更新 $X_i$ （即撤销修改），同时向日志追加一条 redo-only 记录 $&lt;T_i,\ X_j,\ V_1$&gt;。</li>
+<li>当遇到记录 &lt;$T_i\ $start&gt;，系统向日志追加一条 &lt;$T_i\ $abort&gt; 记录，对于该事务的回滚也就结束了。</li>
+</ul>
+<p>系统回滚所添加的这些日志记录又被称为 compensation log records. 其实可以这样理解，事务中止处于未完成状态，系统创建一个互补事务，负责撤销事务所做的更改，并补充完整日志记录。</p>
+<p><img src="/img/log-based_recovery_system/3.png" srcset="/img/loading.gif" lazyload alt="图 3"></p>
+<br>
+
+<p><font color=dark-green>恢复算法思想</font><br>系统重启后是很懵逼的，它不清楚执行过的事务的具体情况，所以它需要查看 log 文件，根据日志记录的完整性，可以将事务分为两种：</p>
+<ul>
+<li><p><u>事务执行完成（committed 或 aborted）</u>。当系统重启后，发现某事务在 log 文件中包含了完整的日志记录，同时具有 &lt;$T_i\ $start&gt; 和 &lt;$T_i\ $commit&gt; 或 &lt;$T_i\ $abort&gt;。根据 WAL rule，尽管日志表明该事务已经完成，无论是事务自己正常提交还是系统所做的互补操作，但它不能确定这些操作已经写入数据库中（很可能系统在将 log buffer <em>output</em> 到 stable storage 之后就失败了，还未来得及将 data buffer <em>output</em> 到数据库），<strong>因此它必须依据日志 redo 这些操作</strong>。</p>
+</li>
+<li><p><u>事务执行未完成</u>。当系统重启后，发现某事务在 log 文件中没有包含完整的日志记录，即缺少了 &lt;$T_i\ $commit&gt; 或 &lt;$T_i\ $abort&gt; 记录，为保证事务的原子性和数据的一致性，该事务所做的操作必须撤销，<strong>也就是必须 undo 这些操作</strong>。当然，系统有可能在 rollback 未完成时就发生了故障，也就是日志中含有不完整的 redo-only 记录，undo 这些记录实际上就是 redo 它们。</p>
+</li>
+</ul>
+<p>上面简单描述了恢复算法的的思想，很朴素，<font color=red>但却存在很大的性能问题</font>，试想在系统重启之前可能存在成千上百的事务执行大量的操作，这些操作都记录在了 log 文件中，log 文件可能变得十分巨大，若系统重启后对这些操作全都执行 redo 或 undo，系统可用性就会很差，何况，有很多操作已经实实在在写入了数据库，不需要再做额外的操作。为了减少恢复时间，数据库系统通常采用一种简单的方法，称作 checkpoints. </p>
+<br>
+
+<p><font color=dark-green>Checkpoints 思想</font><br>checkpoint 是一组如下的操作：</p>
+<ol>
+<li>从 log buffer <em>output</em> 所有的日志记录到 stable storage 中。</li>
+<li>从 data buffer <em>output</em> 所有的数据修改到数据库磁盘文件中。</li>
+<li>系统向日志文件追加一条 &lt;checkpoint L&gt; 记录，并 <em>output</em> 到 stable storage 中。L 是一组事务标识符的集合，表示执行 checkpoint 时，还处于活跃状态的事务集合。</li>
+</ol>
+<p><font color=red>那么有了 checkpoint 后，又当如何缓解上述问题呢？</font>假设存在一个事务 $T_i$，它在执行 checkpoint 操作之前已经完成（committed 或 aborted），那么该事务的相关日志记录要么在 checkpoint 之前 <em>output</em> 到日志文件了，要么在 checkpoint 过程中 <em>output</em> 到日志文件，总之这些记录出现在 &lt;checkpoint L&gt; 之前，即 L 中不包含 $T_i$，系统重启后，也自然没有必要 redo $T_i$ 的操作了。随着日志文件越来越大，有了 checkpoint 记录，就可以丢弃以前的记录了，反正也用不上了。</p>
+<br>
+
+<p><font color=dark-green>恢复算法详细步骤</font><br>有了以上的知识背景，现在可以提出完整的 log-based recovery algorithm 步骤了，当数据库系统从崩溃中重启后，会完成如下两个部分的工作：</p>
+<p><strong>重放阶段（Redo Phase）</strong>. 该阶段，系统从最后一条 checkpoint 记录开始<font color=red>向前扫描</font>（追加方向），重新执行具有完整日志记录（含有 commit 或 abort 记录）的事务所做的操作。另外，该阶段在扫描时，还会记录 undo-list，包含那些没有完整记录（不含有 commit 或 abort 记录）的事务标识符，这些事务要么出现在最后一条 checkpoint 记录的 L 中，要么在最后一次 checkpoint 操作后才开始。在扫描过程中，有如下步骤：</p>
+<ol>
+<li>使用最后一条 checkpoint 记录中的 L 集合初始化 undo-list</li>
+<li>当扫描到一条更新记录 &lt;$T_i,\ X_j,\ V_1,\ V_2$&gt; 或者 redo-only 记录 &lt;$T_i,\ X_j,\ V_1$&gt; 时，系统重新执行记录表示的操作。</li>
+<li>当扫描到一条 &lt;$T_i\ $start&gt; 记录时，将 $T_i$ 添加到 undo-list 中。</li>
+<li>当扫描到一条 &lt;$T_i\ $commit&gt; 或 &lt;$T_i\ $abort&gt; 记录时，将 $T_i$ 从 undo-list 中移除。</li>
+</ol>
+<p><strong>撤销阶段（Undo Phase）</strong>. 上一阶段结束后，undo-list 包含了所有处于未完成状态的事务标识符。系统从日志文件结束位置开始<font color=red>向后扫描</font>，撤销这些未完成事务的所有操作，扫描中，包含如下步骤：</p>
+<ol>
+<li>当扫描到属于 undo-list 中事务的日志时，执行 undo 操作，和正常情况下事务失败回滚的操作一样。</li>
+<li>当扫描到属于 undo-list 中事务的 &lt;$T_i\ $start&gt; 日志后，系统向日志文件追加一条 &lt;$T_i\ $abort&gt;，并将该事务从 undo-list 中移除。</li>
+<li>当 undo-list 为空时，扫描停止，该阶段结束。</li>
+</ol>
+<p>在 redo 阶段可能存在重复的操作，比如正常情况下的失败事务的日志记录和回滚时的记录，但正是这少许的重复，使得整个流程简单了不少，只需要两遍扫描就能完成恢复。上述两个过程如图 4 所示：<br><img src="/img/log-based_recovery_system/4.jpg" srcset="/img/loading.gif" lazyload alt="图 4"></p>
+<br>
+
+<p><font color=dark-green>一些细节</font><br>checkpoint 阶段应该也是原子操作，也就是说，在执行 checkpoint 时，不允许事务向 buffer 中写更新，这个要求可以通过 fuzzy checkpoint 技术放松，这里不谈。</p>
+<p>而且，当 buffer block 向磁盘 <em>output</em> 时，也不允许事务向 buffer block 执行写操作，不然可能会违法 WAL 规则。</p>
+<p>保证以上两个要求，可以通过特殊的锁：</p>
+<ul>
+<li>当事务执行 <em>write</em> 时，应当先获取数据所在 buffer block 的排它锁，当更新执行完后，立即释放锁。</li>
+<li>当 <em>output</em> data buffer block 时，应该先获取 该 block 的排它锁，然后 <em>output</em> 与该 block 数据相关的所有 log records 到 stable storage 中，再然后 <em>output</em> 该 block 的数据到数据库磁盘文件中，最后释放该锁。</li>
+</ul>
+<p>可以看到，这里的锁持有的时间很短，一般将这种锁称为 latch.</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>虽然写了这么多，但这些却是最简单的知识，还有很多高级的话题没写，等着以后学习深入了再来补充吧。</p>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E4%BA%8B%E5%8A%A1/" class="category-chain-item">事务</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>事务篇四：Log-Based Recovery System</div>
+      <div>http://example.com/2022/06/22/数据库恢复系统/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年6月22日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/06/22/%E4%BA%8B%E5%8A%A1%E7%9A%84%E5%8F%AF%E4%B8%B2%E8%A1%8C%E5%8C%96/" title="事务篇二：事务的可串行化">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">事务篇二：事务的可串行化</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/06/22/%E4%BA%8B%E5%8A%A1%E6%80%BB%E8%AE%BA/" title="事务篇一：事务总论">
+                        <span class="hidden-mobile">事务篇一：事务总论</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

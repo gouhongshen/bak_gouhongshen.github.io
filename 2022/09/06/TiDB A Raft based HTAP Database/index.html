@@ -1,0 +1,869 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="TiDB 要解决什么问题？关系型数据库管理系统因提供了关系模型、强事务支持和良好的 SQL 接口而广受欢迎，在如银行业等传统应用场景用得很多。然而以前的关系型数据库不支持拓展性（伸缩性）和高可用性，这时 NoSQL 就应运而生，如 BigTable、DynamoDB 和 Redis. NoSQL 放松了对一致性的要求（事务）而提供了高拓展性和可选的数据模型（如 key-val、图和文本）。那么有没">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TiDB: A Raft-based HTAP Database">
+<meta property="og:url" content="http://example.com/2022/09/06/TiDB%20A%20Raft%20based%20HTAP%20Database/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="TiDB 要解决什么问题？关系型数据库管理系统因提供了关系模型、强事务支持和良好的 SQL 接口而广受欢迎，在如银行业等传统应用场景用得很多。然而以前的关系型数据库不支持拓展性（伸缩性）和高可用性，这时 NoSQL 就应运而生，如 BigTable、DynamoDB 和 Redis. NoSQL 放松了对一致性的要求（事务）而提供了高拓展性和可选的数据模型（如 key-val、图和文本）。那么有没">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/TiDB-Paper/2.jpg">
+<meta property="og:image" content="http://example.com/img/TiDB-Paper/3.jpg">
+<meta property="og:image" content="http://example.com/img/TiDB-Paper/4.jpg">
+<meta property="og:image" content="http://example.com/img/TiDB-Paper/5.jpg">
+<meta property="og:image" content="http://example.com/img/TiDB-Paper/6.jpg">
+<meta property="article:published_time" content="2022-09-06T03:34:09.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.306Z">
+<meta property="article:author" content="gouhongshen">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/TiDB-Paper/2.jpg">
+  
+  
+  
+  <title>TiDB: A Raft-based HTAP Database - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="TiDB: A Raft-based HTAP Database"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-09-06 11:34" pubdate>
+          2022年9月6日 中午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          4.5k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          51 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">TiDB: A Raft-based HTAP Database</h1>
+            
+            <div class="markdown-body">
+              
+              <h2 id="TiDB-要解决什么问题？"><a href="#TiDB-要解决什么问题？" class="headerlink" title="TiDB 要解决什么问题？"></a>TiDB 要解决什么问题？</h2><p>关系型数据库管理系统因提供了关系模型、强事务支持和良好的 SQL 接口而广受欢迎，在如银行业等传统应用场景用得很多。然而以前的关系型数据库不支持拓展性（伸缩性）和高可用性，这时 NoSQL 就应运而生，如 BigTable、DynamoDB 和 Redis. NoSQL 放松了对一致性的要求（事务）而提供了高拓展性和可选的数据模型（如 key-val、图和文本）。那么有没有可能把关系型数据库和 NoSQL 的优点结合在一起呢，同时提供强事务保证、高拓展性和可用性？NewSQL 就在干这件事，如 CockroachDB 和 Spanner.</p>
+<blockquote>
+<p>NoSQL (not only sql) 一般由以下几种驱动因素：</p>
+<ul>
+<li>比关系型数据库更好的伸缩性，包括非常大的数据集或非常高的写吞吐量。</li>
+<li>关系模型不能很好的支持一些特殊的查询操作。</li>
+</ul>
+</blockquote>
+<blockquote>
+<p><strong>对于第一点</strong>，可以参考文章：<a href="/2022/09/08/%E5%85%B3%E7%B3%BB%E5%9E%8B%E6%95%B0%E6%8D%AE%E5%BA%93%E6%8B%93%E5%B1%95%E6%80%A7%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88/" title="关系型数据库拓展性解决方案">关系型数据库拓展性解决方案</a>。<strong>对于第二点</strong>，考虑存储一份简历。一个人可能有多段求学经历、多段工作经历和一些其他信息。在关系型数据库中，可能需要建立多张表：求学经历表，存储每一个用户的求学经历；工作经历表，存储每一个用户的工作信息；用户表，存储用户的基本信息等。那么当查询某个用户的简历时就需要查询多个表，做一些 join 操作，并发度和性能就有所损失，而像 MongoDB 这类文档数据库可以直接存储 Json、XML 等数据，当要访问简历信息时，将文档存储在一处的局部性就会带来性能优势。另外，关系数据模型将数据存储在关系表中，那么就需要一个转换层将表、行、列等转换成应用程序中的对象模型。（当然了，现阶段的 SQL 标准也增加了对结构化数据和 XML 数据的支持，可以将多值数据存储在单行内，并支持对它们的查询和索引。）</p>
+</blockquote>
+<br>
+
+<p>无论是单机关系型数据库、NoSQL 还是 NewSQL 它们都属于 OLTP（online transaction processing）。用户通过 OLTP 创造了数据，这些数据可能蕴含者巨大的价值，需要进行挖掘。OLAP（online analytical processing）系统就是用来发掘数据价值的。OLTP 所产生的业务数据分散在不同的业务系统中，而 OLAP 往往需要将不同的业务数据集中到一起进行统一综合的分析，这时候就需要根据业务分析需求做对应的数据清洗后存储在数据仓库中，然后由数据仓库来统一提供 OLAP 分析。所以我们常说 OLTP 是数据库的应用，OLAP 是数据仓库的应用。可以将 OLAP 看作是 OLTP 的一种延展，一个让 OLTP 产生的数据发现价值的过程。</p>
+<p>OLTP 和 OLAP 这样搭配起来各干各的或看起来不错，但也存在一些问题，比如数据转换需要一些其他的组件（如ETL），需要花精力维护，转换过程持续时间较长，而且数据都是定期成批次地进行转换（量大），OLTP 性能是否会受到影响也需要考虑，此外在<strong>某些</strong>应用中，数据还需要实时分析。所以 HTAP（OLTP &amp; OLAP）系统就产生了，当然了不能仅仅是缝合在一起，还有新的要求：</p>
+<ul>
+<li>数据新鲜度保证（freshness）。及时分析新数据蕴含着巨大商业价值（如推荐）。</li>
+<li>性能隔离性保证（isolation）。隔离性表示两个系统同时工作时，需要保证两类系统的性能不会相互影响（或影响很小）。</li>
+</ul>
+<br>
+
+<p>总计一下，TiDB 做了啥：</p>
+<ul>
+<li>保证 OLTP 和 OLAP 负载不会相互干扰。</li>
+<li>OLAP 请求能够读到足够新的，和 OLTP 具有一致性的数据。</li>
+<li>由于数据是一致的，就能够在 SQL 层（优化器）将不同的语句交由 OLTP 或 OLAP 处理。</li>
+</ul>
+<br>
+
+<p>虽然 TiDB 融合了 OLTP 和 OLAP，但采用了两套存储引擎（TiKV 和 TiFlash）来分别支持事务和分析请求。TiKV 是行式存储（row-format），用于存储事务处理中的数据，TiFlash 是列式存储（column-format），用于给分析型请求提供支持。TiDB 整个架构如下：<br><img src="/img/TiDB-Paper/2.jpg" srcset="/img/loading.gif" lazyload><br>其中 PD 相当于 Master 集群，主要存储数据分片元数据、负载均衡、分配时间戳等。TiSpark 是用于连接 Hadoop 生态的组件。</p>
+<p><strong>这里先说一下 TiDB 是如何做到 HTAP 功能的</strong>：</p>
+<blockquote>
+<p>在 TiKV 中数据是分片存储的，每一个分片是一段连续的 key 空间，称之为 region. 每一个 region 又包含多个副本，副本之间的数据同步采用 raft 协议，因此整个系统包含多个 region，也就是多个 raft 组，这又称之为 multi-raft.</p>
+</blockquote>
+<blockquote>
+<p>为了保证 OLTP 和 OLAP 不会相互干扰，一般这两种类型的查询执行在不同的机器上，最主要的困难还是如何从 OLTP 中拿到足够新的数据副本给 OLAP，而且还得保证这些副本数据是一致的（当然这样也保证了高可用性）。因此啊，TiDB 在 raft 中引入了一个新的角色：learner. 它只从 leader 那里复制日志，不参与选举、不参与投票（也就是不算做大多数），因此这个日志复制是异步的。在 TiFlash 中会为 TiKV 中的每一个 region 设置一个 learner. learner 从 leader 复制过来的日志会在 TiFlash 中重放处理后，再转换成列式存储在 TiFlash 中供分析型查询使用。</p>
+</blockquote>
+<blockquote>
+<p>由于复制的时间很短，能够保证新鲜度，raft 协议也能保证数据的一致性。在不同的存储引擎上执行不同类型的查询，TP 和 AP 的性能也不会相互干扰。TiKV 与 TiFlash 关系如下图，可以看到 TiKV 中的多个 region 中的数据可能存储在 TiFlash 中的一个 partition 中。<br><img src="/img/TiDB-Paper/3.jpg" srcset="/img/loading.gif" lazyload></p>
+</blockquote>
+<p>上面的描述看起来好像 TiDB 的创新也不是很多嘛，这里总结下（论文）：</p>
+<blockquote>
+<ul>
+<li>构建了一个基于 raft 的开源 HTAP，为 HTAP 负载提供了高可用性、一致性<br>伸缩性、AP 数据实时性和 AP&#x2F;TP 性能的隔离性。</li>
+<li>为 raft 协议引入了一个 learner 角色，为 AP 查询提供实时的列式存储数据。</li>
+<li>实现 multi-raft，并优化了其读写性能。</li>
+<li>实现了一个 SQL 引擎层，能够依据不同的 HTAP 查询选择合适的存储模式。</li>
+<li>大量的对比实验。</li>
+</ul>
+</blockquote>
+<br>
+
+<p>其实更多的还是工程实现上的困难：</p>
+<blockquote>
+<ol>
+<li>首先是 raft 和 multi-raft 相关问题：① 如何优化 raft 流程提升读写请求性能；② 分片数据的迁移、分裂、合并等。</li>
+<li>如何及时地（低延迟）将日志同步到 learner 以保证新鲜度？正在进行的事务可能会生成一些非常大的日志，这些日志需要在 learner 中快速重放和实例化（materialization），以便分析型查询读取新数据。将日志数据转换为列式可能会由于模式（schema）不匹配而遇到错误，这同样可能会延迟日志同步。</li>
+<li>同时进行 TP 和 AP 时如何保证各种的性能？大型 TP 需要读取写入多个服务器上的大量数据。AP 同样也消耗大量资源。为了减少执行开销，SQL 层还需要为这两类工作制定合适的执行计划，选择合适的存储引擎。</li>
+</ol>
+</blockquote>
+<br>
+
+<p>就像论文中说的那样，TiDB 提供了一种思路将 NewSQL 进化为 HTAP. 整篇论文都在将怎么进化的，效果怎么样。 </p>
+<h2 id="TiDB-中的-Raft-算法"><a href="#TiDB-中的-Raft-算法" class="headerlink" title="TiDB 中的 Raft 算法"></a>TiDB 中的 Raft 算法</h2><p>基本的 raft 算法流程大概是下面这样的：</p>
+<blockquote>
+<ol>
+<li>一个 region leader 收到来自 SQL 层的请求。</li>
+<li>leader 将请求追加到自己的日志中（包括写磁盘）。</li>
+<li>leader 将这些新的日志条目发送到 follower（并行），它们也将这些条目追加到自己的日志中。</li>
+<li>leader 等待 follower 回复，一旦超过大多数（包括自己）回复成功，leader 就会提交这些日志，并将它们应用到复制状态机中。</li>
+<li>leader 将应用请求的结果返回客户端（SQL 层）并继续提供服务。</li>
+</ol>
+</blockquote>
+<p>上述过程最大的问题是性能不高，所有步骤都是串行执行的，因此在 TiDB 中有如下的优化：</p>
+<ul>
+<li>步骤 2 和 3 可以并行。这两个过程没有依赖关系，因此 leader 可以在追加日志的同时将日志发送给 follower. 如果 leader 持久化日志失败了，但大多数 follower 成功复制了日志，依然满足大多数原则，日志依旧可以被提交。</li>
+<li>另外，步骤 3 中 leader 给 follower 发送日志时可以按批次发送。而且也不用等待某个 follower 回复成功后再发送后面的，而是假设上次成功了，修改 nextIdx，继续发送后面的日志。如果这个 follower 失败了，调整 nextIdx 即可。</li>
+<li>步骤 4 中的 apply 也可以异步来做。当日志提交后，就可以用另外一个线程来 apply 这些提交了的日志。</li>
+</ul>
+<p>优化后，TiDB 中 raft 算法流程大致如下：</p>
+<blockquote>
+<ol>
+<li>leader 收到来自 SQL 层的请求。</li>
+<li>leader 将请求追加到自己的日志中，同时（并行）将这些日志发送给 follower.</li>
+<li>leader 继续接收请求，重复步骤 1，2.</li>
+<li>leader 提交日志，并将提交的日志发送给另外一个线程 apply.</li>
+<li>apply 后，leader 返回结果给客户端（SQL 层）。</li>
+</ol>
+</blockquote>
+<br>
+
+<p>另外还有读优化。TiDB 实现了 readIndex、lease Read 和 follower read. </p>
+<h2 id="TiDB-的事务处理"><a href="#TiDB-的事务处理" class="headerlink" title="TiDB 的事务处理"></a>TiDB 的事务处理</h2><p>TiDB 在事务中实现了悲观锁和乐观锁。<strong>乐观事务的流程大致如下</strong>：</p>
+<blockquote>
+<ol>
+<li>从客户端接收到 “begin” 命令后，SQL 层向 PD 申请一个时间戳作为本次事务的开始时间戳 start_ts。</li>
+<li>对于每一条来自客户端的 DML，SQL 层从 TiKV 中读取 [0, start_ts] 区间内最新的数据，然后在事务本地内存中操作数据。</li>
+<li>当 SQL 层收到客户端的 “commit” 命令后开启 2PC 流程。它先随机地选择一个 key 作为 primary key，然后锁住所有的 key（锁住 keys 是为了保证事务的原子性），最后发送 prewrites 给 TiKV. 因为会牵扯到很多的 key，它们可能存在不同的节点上，所有发送 prewrites 之前，需要向 PD 查询路由信息，然后分组发送.</li>
+<li>当所有的 prewrite 都成功后，SQL 层向 PD 申请一个时间戳作为本次事务的提交时间戳 commit_ts. 然后 SQL 层发送命令给 TiKV 提交 primary key.</li>
+<li>primary key 提交成功后，SQL 层即可向客户端回复。</li>
+<li>SQL 层异步提交其他的 key，并清理锁。</li>
+</ol>
+</blockquote>
+<blockquote>
+<p>DML &#x3D; Data Manipulation Language，包括 insert、update、delete、select.</p>
+</blockquote>
+<p>关于乐观事务更加详细的描述可以参考文章: <a target="_blank" rel="noopener" href="https://docs.pingcap.com/zh/tidb/dev/optimistic-transaction">TiDB 乐观事务模型</a>。这个过程和 percolator 大致一样，不过 TiDB 是异步提交 secondary keys. 乐观事务实现了快照隔离。</p>
+<p><strong>悲观事务模型</strong>和乐观事务模型相差不大，最大的区别在于加锁的时机。一般来说，乐观模型是一种验证模型，待所有的更新操作完成后，再验证这些更新能否写入数据库；而悲观则是先取得要更新数据的锁，再更新数据。TiDB 的悲观模型有点不一样，可以参考文章：<a target="_blank" rel="noopener" href="https://docs.pingcap.com/zh/tidb/dev/pessimistic-transaction">TiDB 悲观事务模式</a>。在这个模型中实现了可重复读（RR）和读已提交（RC）隔离级别。</p>
+<p>关于 PD（placement driver）的运作机理，可以参考这篇文章：<a target="_blank" rel="noopener" href="https://cn.pingcap.com/blog/tidb-6.0-make-tso-more-efficient">TiDB 6.0：让 TSO 更高效</a></p>
+<h2 id="TiDB-中的-TiFlash"><a href="#TiDB-中的-TiFlash" class="headerlink" title="TiDB 中的 TiFlash"></a>TiDB 中的 TiFlash</h2><p>待续。。。</p>
+<h2 id="TiDB-的性能"><a href="#TiDB-的性能" class="headerlink" title="TiDB 的性能"></a>TiDB 的性能</h2><p><img src="/img/TiDB-Paper/4.jpg" srcset="/img/loading.gif" lazyload><br><img src="/img/TiDB-Paper/5.jpg" srcset="/img/loading.gif" lazyload><br><img src="/img/TiDB-Paper/6.jpg" srcset="/img/loading.gif" lazyload></p>
+<blockquote>
+<p>TC &#x3D; transaction client, AC &#x3D; analysis client.<br>TPS &#x3D; Transactions Per Second，指一台服务器每秒能够处理的事务数量.<br>QPS &#x3D; Queries Per Second，指一台服务器每秒能够响应的查询次数.</p>
+</blockquote>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>TiDB: A Raft-based HTAP Database</div>
+      <div>http://example.com/2022/09/06/TiDB A Raft based HTAP Database/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年9月6日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/09/08/%E5%85%B3%E7%B3%BB%E5%9E%8B%E6%95%B0%E6%8D%AE%E5%BA%93%E6%8B%93%E5%B1%95%E6%80%A7%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88/" title="关系型数据库拓展性解决方案">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">关系型数据库拓展性解决方案</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/08/24/%E6%9F%A5%E8%AF%A2%E5%A4%84%E7%90%86%E7%AF%87%EF%BC%9A%E6%9F%A5%E8%AF%A2%E6%89%A7%E8%A1%8C%E6%A8%A1%E5%9E%8B/" title="查询处理篇：查询执行模型">
+                        <span class="hidden-mobile">查询处理篇：查询执行模型</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

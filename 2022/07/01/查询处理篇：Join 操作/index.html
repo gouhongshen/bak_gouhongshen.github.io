@@ -1,0 +1,816 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="关于 join 操作，可以看这篇Join 的种类。 为了方便计算，考虑有 student 和 takes 两张表，需要执行它们的 join 操作，即 $student \bowtie takes$. 同时这两张表具有如下的特点：  student 表的记录数量 $n_{student} &#x3D; 5000$student 表文件的 block 数量 $b_{student} &#x3D; 10">
+<meta property="og:type" content="article">
+<meta property="og:title" content="查询处理篇：Join 操作">
+<meta property="og:url" content="http://example.com/2022/07/01/%E6%9F%A5%E8%AF%A2%E5%A4%84%E7%90%86%E7%AF%87%EF%BC%9AJoin%20%E6%93%8D%E4%BD%9C/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="关于 join 操作，可以看这篇Join 的种类。 为了方便计算，考虑有 student 和 takes 两张表，需要执行它们的 join 操作，即 $student \bowtie takes$. 同时这两张表具有如下的特点：  student 表的记录数量 $n_{student} &#x3D; 5000$student 表文件的 block 数量 $b_{student} &#x3D; 10">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/join_op/1.jpg">
+<meta property="og:image" content="http://example.com/img/join_op/2.jpg">
+<meta property="og:image" content="http://example.com/img/join_op/3.jpg">
+<meta property="og:image" content="http://example.com/img/join_op/4.jpg">
+<meta property="og:image" content="http://example.com/img/join_op/5.jpg">
+<meta property="og:image" content="http://example.com/img/join_op/6.jpg">
+<meta property="article:published_time" content="2022-07-01T08:21:19.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.328Z">
+<meta property="article:author" content="gouhongshen">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/join_op/1.jpg">
+  
+  
+  
+  <title>查询处理篇：Join 操作 - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="查询处理篇：Join 操作"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-07-01 16:21" pubdate>
+          2022年7月1日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          5.5k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          62 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">查询处理篇：Join 操作</h1>
+            
+            <div class="markdown-body">
+              
+              <p>关于 join 操作，可以看这篇<a href="/2022/08/22/Join%20%E7%9A%84%E7%A7%8D%E7%B1%BB/" title="Join 的种类">Join 的种类</a>。</p>
+<p>为了方便计算，考虑有 student 和 takes 两张表，需要执行它们的 join 操作，即 $student \bowtie takes$. 同时这两张表具有如下的特点：</p>
+<blockquote>
+<p>student 表的记录数量 $n_{student} &#x3D; 5000$<br>student 表文件的 block 数量 $b_{student} &#x3D; 100$<br>takes 表的记录数量 $n_{takes} &#x3D; 10,000$<br>takes 表文件的 block 数量 $b_{takes} &#x3D; 400$</p>
+</blockquote>
+<h3 id="Nested-Loop-Join-算法"><a href="#Nested-Loop-Join-算法" class="headerlink" title="Nested-Loop Join 算法"></a>Nested-Loop Join 算法</h3><p>该算法的伪代码为：<br><img src="/img/join_op/1.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>该算法非常简单易懂，<u>在最坏的情况下</u>，每个表只分配一个 buffer block，那么总共需要传输 $n_r * b_s + b_r$ 个 block，对于外层表 r 的每一条记录都需要完整地扫描一遍内层表 s，如果每个表文件的所有 block 都按顺序存储，那么总共需要 $n_r + b_r$ 次随机 I&#x2F;O. <u>在最好的情况下</u>，两张表都能放在内存，那么总共需要传输 $b_s + b_r$ 个 block，2 次随机 I&#x2F;O.</p>
+<p>很明显，如果某个表能够完全放入内存中，应该将它放在算法的内层，其代价和两个表都能放进内存时一样。如果都不能，将较小的表放在外层较好。</p>
+<p>现在应用上述算法到上面的例子，<u>假设 student 在外层，takes 在内层</u>：</p>
+<ul>
+<li>最坏情况下，需要传输 $5000*4000+100&#x3D;2000100$ 个 block，$5000+100&#x3D;5100$ 次随机 I&#x2F;O. </li>
+<li>最好情况下，需要传输 $100+400&#x3D;500$ 个 block，2 次随机 I&#x2F;O.</li>
+</ul>
+<p><u>假设 takes 在外层，student 在内层</u>：</p>
+<ul>
+<li>最坏情况下，需要传输 $10000*100+400&#x3D;1000400$ 个 block，$10000+400&#x3D;10400$ 次随机 I&#x2F;O.</li>
+<li>最好情况下，需要传输 $100+400&#x3D;500$ 个 block，2 次随机 I&#x2F;O.</li>
+</ul>
+<h3 id="Block-Nested-Loop-Join-算法"><a href="#Block-Nested-Loop-Join-算法" class="headerlink" title="Block Nested-Loop Join 算法"></a>Block Nested-Loop Join 算法</h3><p>该算法的伪代码如下：<br><img src="/img/join_op/2.jpg" srcset="/img/loading.gif" lazyload><br>基础的 nested-loop join 算法中，对于外层表的每一条记录就会完整遍历一次内层表，而在 block nested-loop join 算法中，对这一点做了改进：对于外层的每一个 block，访问一次内层表，如上图。</p>
+<p><u>在最坏的情况下</u>，每个表只能各有一个 block 驻留内存，对于外层的每一个 block，内层表的每个 block 只需要访问一次，再加上外层表的 block 数量，所以总共需要传输 $b_r * b_s + b_r$ 个 block. 在每一个外层的 block 需要随机 I&#x2F;O 一次内层表（block 连续存储），再加上外层表的每一个 block 需要随机 I&#x2F;O 一次，所以总共需要 $2 * b_r$ 次随机 I&#x2F;O. <u>在最好的情况下</u>，两个表都能放在内存，总共需要传输 $b_r + b_s$ 个 block，2 次随机 I&#x2F;O.</p>
+<p>很明显，如果某个表能够完全放入内存中，应该将它放在算法的内层，其代价和两个表都能放进内存时一样。如果都不能，将较小的表放入外层较好。</p>
+<p>现在应用上述算法到上面的例子，<u>假设 student 在外层（较小），takes 在内层</u>：</p>
+<ul>
+<li>最坏情况下，需要传输 $100 * 400+100&#x3D;40100$ 个 block，$2*100&#x3D;200$ 次随机 I&#x2F;O.</li>
+<li>最好情况下，需要传输 $100+400&#x3D;500$ 个 block，2 次随机 I&#x2F;O.</li>
+</ul>
+<p>和 nested-loop join 相比，最坏情况下的代价大幅减少，最好情况两种一致。nested-loop join 和 block nested-loop join 两个算法通过<u>以下方式还能提升其性能</u>：</p>
+<ul>
+<li>如果 join 条件是在内层表主键&#x2F;候选键上的等值连接，那么内层循环就能在第一条匹配记录找到后结束。</li>
+<li>block nested-loop join 算法中 nested-loop 的单位是 block，如果增大这个单位，代价就能进一步减少。假设有 $M$ 个 buffer block，给外层表分配 $M-2$ 个，内层表一个，那么内层表的扫描次数就会从 $b_r$ 降到 $\lceil b_r &#x2F;(M-2) \rceil$. </li>
+<li>buffer block 淘汰是有策略的，如果使用的是 LRU，那么可以采用电梯扫描的方法，尽快复用那些还没换出内存的 block.</li>
+<li>如果内层表在 join 属性上有索引的话，就可以不用文件扫描的方法了。</li>
+</ul>
+<h3 id="Indexed-Nested-Loop-Join"><a href="#Indexed-Nested-Loop-Join" class="headerlink" title="Indexed Nested-Loop Join"></a>Indexed Nested-Loop Join</h3><p>这一部分附上原文：</p>
+<blockquote>
+<p>In a nested-loop join, if an index is available on the inner loop’s join attribute, index lookups can replace file scans. For each tuple $t_r$ in the outer relation r,<br>the index is used to look up tuples in s that will satisfy the join condition with tuple $t_r$. This join method is called an indexed nested-loop join; it can be used with existing indices, as well as with temporary indices created for the sole purpose of evaluating the join.</p>
+</blockquote>
+<blockquote>
+<p>Looking up tuples in s that will satisfy the join conditions with a given tuple $t_r$ is<br>essentially a selection on s. For example, consider $student\bowtie takes$. Suppose that we have a student tuple with ID “00128”. Then, the relevant tuples in takes are those that satisfy the selection “ID &#x3D; 00128”.</p>
+</blockquote>
+<blockquote>
+<p>The cost of an indexed nested-loop join can be computed as follows: For each tuple in the outer relation r, a lookup is performed on the index for s, and the relevant tuples are retrieved. In the worst case, there is space in the buffer for only one block of r and one block of the index. Then, $b_r$ I&#x2F;O operations are needed to read relation r, where $b_r$ denotes the number of blocks containing records of r; each I&#x2F;O requires a seek and a block transfer, since the disk head may have moved in between each I&#x2F;O. For each tuple in r, we perform an index lookup on s. Then, the cost of the join can be computed as $b_r*(t_T + t_S ) + n_r *c$, where $n_r$ is the number of records in relation r, and c is the cost of a single selection on s using the join condition. We have seen in <a href="/2022/07/15/%E6%9F%A5%E8%AF%A2%E5%A4%84%E7%90%86%E7%AF%87%EF%BC%9ASelection%20%E6%93%8D%E4%BD%9C/" title="查询处理篇：Selection 操作">查询处理篇：Selection 操作</a> how to estimate the cost of a single selection algorithm (possibly using indices); that estimate gives us the value of c.</p>
+</blockquote>
+<h3 id="Merge-Join-算法"><a href="#Merge-Join-算法" class="headerlink" title="Merge Join 算法"></a>Merge Join 算法</h3><p><u>算法可用于等值和自然连接</u>，其伪代码如下：<br><img src="/img/join_op/3.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>该算法基于这样一个思想：如果参与 join 操作的两个表都已经各自在 join 操作所涉及的属性上有序了，那么完成等值&#x2F;自然连接就只需要各扫描两张表一遍。</p>
+<p>在算法的执行过程中，对于每一个 join 属性值，算法会第一个表维护一个集合 $S_s$，保存了所有具有该 join 属性值的记录，然后对于第二个表的每一条具有该 join 属性值的记录与 $S_s$ 中的所有记录 join 操作。</p>
+<p>假设表已经<u>有序了且每个 $S_s$ 都能放进内存</u>，那么算法共需要传输 $b_r + b_s$ 个 block，如果给每个表分配 $b_b$ 个 buffer block，那么共需要 $\lceil b_r&#x2F;b_b \rceil + \lceil b_s&#x2F;b_b \rceil$ 次随机磁盘 I&#x2F;O. 如果将该算法应用在上面例子上，同时令 $b_b&#x3D;1$，那么共需要传输 $400+100&#x3D;500$ 个 block，$400+100&#x3D;500$ 次随机 I&#x2F;O.</p>
+<p>如果<u>未排序</u>，那么就需要先使用<a href="/2022/07/01/%E6%9F%A5%E8%AF%A2%E5%A4%84%E7%90%86%E7%AF%87%EF%BC%9ASorting/" title="外部排序算法">外部排序算法</a>排序。如果 $S_s$ <u>不能放进内存</u>，那么可以再套一个 block nested-loop join，当然需要加上它们的代价。</p>
+<h3 id="Hash-Join-算法"><a href="#Hash-Join-算法" class="headerlink" title="Hash Join 算法"></a>Hash Join 算法</h3><p><u>为了减少无效的比较次数</u>，除了先排序再 join 和使用索引外，hash 也是一种选择，它的基本思想是这样的：使用同样的哈希函数分别将两个表的元组映射（在 join 属性值上映射）为多个分区（partition），那么具有相同 join 属性值的元组一定会被映射到同一个分区，那么 join 操作只需要在两个表的具有相同下标的分区之间进行就可以了，开始细节描述前，先定义如下的符号：</p>
+<blockquote>
+<p>使用 $h$ 表示哈希函数，将 join 属性值映射为整数 $\{0,1,…,n_h\}$.<br>$\{r_0,r_1,…,r_{n_h}\}$ 是表 r 映射的分区，元组 $t_r$ 将放进 $r_i$，$i&#x3D;h(t_r[JoinAttrVal])$<br>$\{s_0,s_1,…,s_{n_h}\}$ 是表 s 映射的分区，元组 $t_s$ 将放进 $s_i$，$i&#x3D;h(t_s[JoinAttrVal])$</p>
+</blockquote>
+<p>下面是算法伪代码和示意图：<br><img src="/img/join_op/4.jpg" srcset="/img/loading.gif" lazyload><br><img src="/img/join_op/5.jpg" srcset="/img/loading.gif" lazyload></p>
+<p>比较简单，<u>该算法可以用于等值连接和自然连接</u>。从代码中可以看到，$n_h$ 的选值很重要，如果选的好，那么 build relation（表 s）的每一个分区 $s_i$ 和在其上的 hash index 就都能放进内存，而 probe relation（表 r）的分区可以不做此要求。</p>
+<p>假设当前系统有 $M$ 个空闲 buffer block，build relation 有 $b_s$ 个 block，如果哈希函数能够满足均匀和随机特性，join 属性值会被平均映射到各个分区，为了能让 build relation 的每个分区都能放进内存，那么 $n_h &gt;&#x3D; \lceil b_s&#x2F;M \rceil$.</p>
+<p>很可能算出来的 $n_h$ 过大，build relation 不能一次性完成 partition（因为 buffer block 不够用），那么就需要多次 partition，下面是示意图：<br><img src="/img/join_op/6.jpg" srcset="/img/loading.gif" lazyload><br>图中展示了这样一种情况，为了使 build relation 的某个分区能放进内存，$n_h$ 的最小取值为 9，但空闲 buffer block 只有 3 个，一轮不能将完成全部的映射，所以采用 recursive partitioning.</p>
+<p>其实可以计算，要满足什么样的情况就可以不用 recursive. 当 $M &gt; n_h + 1$ 时，就可以不用，等价地，$M &gt;(b_s&#x2F;M) + 1$，继续可以近似为 $M &gt; \sqrt{b_s}$. 假设空闲 buffer pool 总容量为 12MB，可以分成 3072 个 4KB 的 block，那么这样的 buffer pool 最多能够支撑 3072 * 3072 * 4KB &#x3D; 36GB 的 build relation 映射时不需要 recursive.</p>
+<p><u>那么 hash join 的开销又是多少呢</u>? 假设不需要 recursive partitioning，每个分区都能装进内存。首先，r 和 s 都需要分别读入内存 partition，再然后将分区写回磁盘，这过程需要传输 $2 * (b_r + b_s)$ 个 block. 在 build 和 probe 阶段，所有分区又都需要读入内存一次，这个过程需要传输 $b_r + b_s$ 个 block. 考虑到 partition 后，映射到一个分区的记录不一定能填满一个 block，也就是读入写出分区时，也必须传输没有填充的 block 部分，两个表加起来大约有 $4 * n_h$ 额外的 block（每个分区半满），所以一共需要传输的 block 数量为：<br>$$3 * (b_r+b_s) + 4 * n_h$$</p>
+<p>假设共有 $b_b$ 个 block 分配给 partitioning 阶段，两个表读出和写入共需要 $2(\lceil b_r&#x2F;b_b\rceil + \lceil b_s&#x2F;b_b\rceil)$ 次随机 I&#x2F;O. 在 build 和 probe 阶段，读出（不需要再写入）一个分区需要一次随机 I&#x2F;O，那么对于两个表的所有分区，共需要 $2 * n_h$ 次随机 I&#x2F;O，所有总共的随机 I&#x2F;O 次数为：<br>$$<br>2(\lceil b_r&#x2F;b_b\rceil + \lceil b_s&#x2F;b_b\rceil) + 2 * n_h<br>$$</p>
+<p><a target="_blank" rel="noopener" href="https://pingcap.com/zh/blog/tidb-source-code-reading-9">看看 TiDB 的 hash join 是怎么做的</a><br><a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s/9EWY2w-il1c-jPvE9VQRwg">看看云和恩墨的 hash join 是怎么做的</a></p>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>查询处理篇：Join 操作</div>
+      <div>http://example.com/2022/07/01/查询处理篇：Join 操作/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年7月1日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/07/01/%E6%9F%A5%E8%AF%A2%E5%A4%84%E7%90%86%E7%AF%87%EF%BC%9A%E6%80%BB%E8%AE%BA/" title="查询处理篇：总论">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">查询处理篇：总论</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/07/01/%E6%9F%A5%E8%AF%A2%E5%A4%84%E7%90%86%E7%AF%87%EF%BC%9ASorting/" title="查询处理篇：Sorting">
+                        <span class="hidden-mobile">查询处理篇：Sorting</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

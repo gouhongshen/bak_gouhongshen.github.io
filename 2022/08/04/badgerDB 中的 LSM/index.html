@@ -1,0 +1,783 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="badgerDB 基本是按照 WiscKey 论文  实现的，在 levelDB 基础上专门为 SSD 做了优化。 第一个优化，Key 和 Value 分开存储。在 levelDB 中 key-val 是一起插入 LSM 中的，当某两层归并时 key 和 val 都会被读入内存、排序然后再写回磁盘，事实上只有 key 参与了排序，如果将 val 存在另外一个地方，合并时只需要读取 key，就可以有">
+<meta property="og:type" content="article">
+<meta property="og:title" content="badgerDB 中的 LSM">
+<meta property="og:url" content="http://example.com/2022/08/04/badgerDB%20%E4%B8%AD%E7%9A%84%20LSM/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="badgerDB 基本是按照 WiscKey 论文  实现的，在 levelDB 基础上专门为 SSD 做了优化。 第一个优化，Key 和 Value 分开存储。在 levelDB 中 key-val 是一起插入 LSM 中的，当某两层归并时 key 和 val 都会被读入内存、排序然后再写回磁盘，事实上只有 key 参与了排序，如果将 val 存在另外一个地方，合并时只需要读取 key，就可以有">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/badgerDB/1.png">
+<meta property="og:image" content="http://example.com/img/badgerDB/2.png">
+<meta property="og:image" content="http://example.com/img/badgerDB/3.png">
+<meta property="article:published_time" content="2022-08-04T14:07:00.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.307Z">
+<meta property="article:author" content="gouhongshen">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/badgerDB/1.png">
+  
+  
+  
+  <title>badgerDB 中的 LSM - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="badgerDB 中的 LSM"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-08-04 22:07" pubdate>
+          2022年8月4日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          2.6k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          30 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">badgerDB 中的 LSM</h1>
+            
+            <div class="markdown-body">
+              
+              <p>badgerDB 基本是按照<a target="_blank" rel="noopener" href="https://www.usenix.org/system/files/conference/fast16/fast16-papers-lu.pdf"> WiscKey 论文 </a> 实现的，在 <a href="/2022/08/04/LevelDB%20%E4%B8%AD%E7%9A%84%20LSM/" title="levelDB">levelDB</a> 基础上专门为 SSD 做了优化。</p>
+<p><font color=red>第一个优化，Key 和 Value 分开存储</font>。在 levelDB 中 key-val 是一起插入 LSM 中的，当某两层归并时 key 和 val 都会被读入内存、排序然后再写回磁盘，事实上只有 key 参与了排序，如果将 val 存在另外一个地方，合并时只需要读取 key，就可以有效的减少写放大。</p>
+<p><img src="/img/badgerDB/1.png" srcset="/img/loading.gif" lazyload></p>
+<p>如上图，badgerDB 将 value 单独存在一个名为 vLog（value log）的文件中，而 LSM 中存储的则是 [key, &lt;vlog_offset, val_size&gt;]，当然了要 addr 远小于 val 时才够划算，算一下每层最坏情况的写放大：</p>
+<blockquote>
+<p>假设 key&#x3D;16B，addr&#x3D;16B，val&#x3D;1KB，如果是普通 LSM 写放大为 10，badgerDB 则为 (10 * (16 + 16) + 1024) &#x2F; (16 + 16 + 1024) &#x3D; 1.27! </p>
+</blockquote>
+<p>这样一来，<u>当插入记录时</u>，val 首先会被追加到 vlog 文件，key 和该 val 的地址会被插入普通的 LSM 中；<u>当删除一条记录时</u>，仅仅只是将 [key, addr] 从 LSM 中删除（插入删除标记），不需要变动 vlog，那些没有 key 指向的 val（被删除或被重写）会在垃圾回收（garbage collection）流程中处理；<u>当查询记录时</u>，首先会在 LSM 中查找，若该记录已经被删除了，返回 not found，否则根据 LSM 中查找到的 addr 再去 vlog 中读取实际的数据。</p>
+<blockquote>
+<p>这里相比 levelDB 多了一步随机读操作，好像性能会更低，实际上由于 key-val 分开存储后，整个 LSM 存储的 SSTable 会小很多，比如现有 key&#x3D;16B，addr&#x3D;16B，val&#x3D;1KB 的 100GB key-val 记录，如果采用 levelDB，加上各种 index，LSM 会远大于 100GB，如果采用 badgerDB，其 LSM 只有 3GB，首先是层级会更少，其次甚至整个 LSM 都可以缓冲到内存中。</p>
+</blockquote>
+<br>
+
+<p><font color=red>第二个优化，提升范围检索性能</font>。levelDB 将 key 和 val 放在一起，范围查询时直接顺序扫描即可，而 badgerDB 将 key-val 分开存储，范围扫描时得到的是一组 val 的地址，会存在大量的随机读，下图展示了 SSD 顺序读和随机读的吞吐量比较：</p>
+<p><img src="/img/badgerDB/2.png" srcset="/img/loading.gif" lazyload></p>
+<p>很明显 badgerDB 必须要使用多线程来提升随机读的性能才能追上顺序读。大致流程是这样的，当上层在迭代器上调用 Next() 接口时，badgerDB 会从 LSM 中预取后面的多个记录，将这些记录中的 val 地址插入到队列中，然后多个线程在后台去 vlog 中读取数据。</p>
+<p>如果是 HDD 的话是做不到的，还是会因为随机访问降低性能，LSM 带来的好处荡然无存。</p>
+<br>
+
+<p><font color=red>第三个优化，垃圾回收</font>。所谓垃圾回收就是将那些已经删除或覆写的记录空间腾出来。levelDB 在删除或更新记录时，只是在 LSM 中插入了新的记录或一条删除标记，并不会立即删除过时的数据，真正的空间回收发生在合并的时候，如果合并时发现过时的记录就丢弃。badgerDB 的 [key, addr] 存储在 LSM 中，并不用担心它们的回收，而 val 单独存在 vlog 中，若不删除过时的数据，vlog 将变得越来越庞大。</p>
+<p>一个比较朴素的方式是，先扫描一遍 LSM 收集过期的 [key, addr]，然后再根据 addr 去删除 vlog 中的 val. 很明显该方法会严重干扰系统的正常服务，所以 badger 采用如下的方式：<br><img src="/img/badgerDB/3.png" srcset="/img/loading.gif" lazyload><br>如上图，badgerDB 对 vlog 存储的记录格式做了一些变更，由 [val] -&gt; [key_size, val_size, key, val]. 可以设置一个阈值，当 vlog 大小达到阈值后开始垃圾回收，也可以定时清理，总之<u>当垃圾回收线程启动后</u>（下称 gcWorker），gcWorker 会从 vlog tail 位置开始一次性读取数个 val 记录，提取其中的 key 去 LSM 中查询该 key 是否过期（可以根据 addr 判断），若过期就将该 val 记录丢弃，若未过期就将该 val 记录 append 到 vlog 的 head 位置。<u>为了防止 append 的时候发生故障</u>，append 的数据会调用 fsync() 同步刷写到 vlog 中，同时将新的 [key，addr] 插入到 LSM 中，还需要将更新后的 tail 插入到 LSM 中，记录格式为 [“tail”, &lt;tail-vLog-offset&gt;]，head 倒不用记录，因为它就是文件的最后一个字节。</p>
+<br>
+
+<p><font color=red>第四个优化，干掉 WAL 日志</font>。levelDB 中有一个 WAL 日志，新的变更操作都会先刷写进 WAL 后才会进入 memTable，为的是防止 故障发生时，memTable 和 immutable 中的记录丢失。在 badgerDB 中 vlog 其实就已经充当了 WAL 日志，为什么？首先只有当 val 记录写入了 vlog 文件中，[key, addr] 才有可能写到 SSTable 中。当系统重启后，只需要扫描 vlog 文件就能恢复 SSTable. 不过这个方法太低效，需要扫描整个 vlog 文件，所以 badgerDB 会周期性的将 head 记录同步刷写到 LSM 中，格式为 [“head”, head-vlog-offset]，这样一来，系统重启后先从 LSM 中查找最近一次的 head，然后从该位置扫描到文件尾进行数据恢复，整个方法有点像 <a href="/2022/06/22/%E6%95%B0%E6%8D%AE%E5%BA%93%E6%81%A2%E5%A4%8D%E7%B3%BB%E7%BB%9F/" title="checkpoint">checkpoint</a>.</p>
+<br>
+
+<p><u>另外，关于 SSD</u>，最初 LSM 更多用在大量 HDD 写场景的，假设一个高端 HDD，有 10ms 寻道延迟，100MB&#x2F;s 的数据传输速率，随机访问 1KB 数据的时间大约为 10ms，而顺序读写 1KB 数据的时间只有 10μs，随机读比上顺序读高达 1000:1（写操作也差不多），所以对于存在大量随机写的场景使用 LSM 吞吐量就会好很多，虽然 LSM 会带来写放大，但也远远小于 1000. </p>
+<p>SSD 的随机和顺序读写延迟大概为 200:1，远低于 HDD，似乎 LSM 对 SSD 效果没那么大，其实不是，首先是吞吐量的提升，其次 SSD 是有擦除（写入前必须擦除）次数限制，而且 SSD 后台还会进行垃圾回收：将分散的 block 放在一起，再擦除被移动的 block. LSM 本身就是顺序追加，会大幅度减少垃圾回收的次数。</p>
+<p>badgerDB 针对 SSD 擦除寿命限制这个特点，将 key val 分开存储，进一步减小 LSM 的写放大，同时利用 SSD 内部并行性特点，提高范围检索时对 val 读取的吞吐量。</p>
+<p>论文中还有很大内容，比如实验对比、崩溃一致性、相关工作等，可以去看看。</p>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>badgerDB 中的 LSM</div>
+      <div>http://example.com/2022/08/04/badgerDB 中的 LSM/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年8月4日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/08/08/Lock%20Manager/" title="Lock Manager">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">Lock Manager</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/08/04/LevelDB%20%E4%B8%AD%E7%9A%84%20LSM/" title="LevelDB 中的 LSM">
+                        <span class="hidden-mobile">LevelDB 中的 LSM</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

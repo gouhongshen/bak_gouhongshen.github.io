@@ -1,0 +1,882 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="分类目录 引用时名字中的字母要保持原样，不能改成小写  动态规划 力扣-123-买卖股票的最佳时机-III力扣-1235-规划兼职工作力扣-124-二叉树中的最大路径和力扣-894-所有可能的真二叉树力扣-剑指-Offer-II-091-粉刷房子力扣-96-不同的二叉搜索树0-1 背包：力扣-416-分割等和子集0-1 背包：力扣-474-一和零0-1 背包：力扣-494-目标和0-1 背包：力扣">
+<meta property="og:type" content="article">
+<meta property="og:title" content="算法刷题杂记">
+<meta property="og:url" content="http://example.com/2022/07/07/%E7%AE%97%E6%B3%95%E5%88%B7%E9%A2%98%E6%9D%82%E8%AE%B0/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="分类目录 引用时名字中的字母要保持原样，不能改成小写  动态规划 力扣-123-买卖股票的最佳时机-III力扣-1235-规划兼职工作力扣-124-二叉树中的最大路径和力扣-894-所有可能的真二叉树力扣-剑指-Offer-II-091-粉刷房子力扣-96-不同的二叉搜索树0-1 背包：力扣-416-分割等和子集0-1 背包：力扣-474-一和零0-1 背包：力扣-494-目标和0-1 背包：力扣">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/leetcode/9.png">
+<meta property="og:image" content="http://example.com/img/leetcode/7.png">
+<meta property="og:image" content="http://example.com/img/leetcode/8.png">
+<meta property="og:image" content="http://example.com/img/leetcode/1.png">
+<meta property="og:image" content="http://example.com/img/leetcode/2.png">
+<meta property="og:image" content="http://example.com/img/leetcode/3.png">
+<meta property="og:image" content="http://example.com/img/leetcode/4.png">
+<meta property="og:image" content="http://example.com/img/leetcode/5.png">
+<meta property="og:image" content="http://example.com/img/leetcode/6.png">
+<meta property="article:published_time" content="2022-07-07T08:03:30.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.333Z">
+<meta property="article:author" content="gouhongshen">
+<meta property="article:tag" content="算法">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/leetcode/9.png">
+  
+  
+  
+  <title>算法刷题杂记 - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="算法刷题杂记"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-07-07 16:03" pubdate>
+          2022年7月7日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          10k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          113 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">算法刷题杂记</h1>
+            
+            <div class="markdown-body">
+              
+              <h2 id="分类目录"><a href="#分类目录" class="headerlink" title="分类目录"></a>分类目录</h2><blockquote>
+<p>引用时名字中的字母要保持原样，不能改成小写</p>
+</blockquote>
+<h3 id="动态规划"><a href="#动态规划" class="headerlink" title="动态规划"></a>动态规划</h3><blockquote>
+<p><a href="#%E5%8A%9B%E6%89%A3-123-%E4%B9%B0%E5%8D%96%E8%82%A1%E7%A5%A8%E7%9A%84%E6%9C%80%E4%BD%B3%E6%97%B6%E6%9C%BA-III">力扣-123-买卖股票的最佳时机-III</a><br><a href="#%E5%8A%9B%E6%89%A3-1235-%E8%A7%84%E5%88%92%E5%85%BC%E8%81%8C%E5%B7%A5%E4%BD%9C">力扣-1235-规划兼职工作</a><br><a href="#%E5%8A%9B%E6%89%A3-124-%E4%BA%8C%E5%8F%89%E6%A0%91%E4%B8%AD%E7%9A%84%E6%9C%80%E5%A4%A7%E8%B7%AF%E5%BE%84%E5%92%8C">力扣-124-二叉树中的最大路径和</a><br><a href="#%E5%8A%9B%E6%89%A3-894-%E6%89%80%E6%9C%89%E5%8F%AF%E8%83%BD%E7%9A%84%E7%9C%9F%E4%BA%8C%E5%8F%89%E6%A0%91">力扣-894-所有可能的真二叉树</a><br><a href="#%E5%8A%9B%E6%89%A3-%E5%89%91%E6%8C%87-Offer-II-091-%E7%B2%89%E5%88%B7%E6%88%BF%E5%AD%90">力扣-剑指-Offer-II-091-粉刷房子</a><br><a href="#%E5%8A%9B%E6%89%A3-96-%E4%B8%8D%E5%90%8C%E7%9A%84%E4%BA%8C%E5%8F%89%E6%90%9C%E7%B4%A2%E6%A0%91">力扣-96-不同的二叉搜索树</a><br><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/partition-equal-subset-sum/">0-1 背包：力扣-416-分割等和子集</a><br><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/ones-and-zeroes/">0-1 背包：力扣-474-一和零</a><br><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/target-sum/">0-1 背包：力扣-494-目标和</a><br><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/profitable-schemes/">0-1 背包：力扣-879-盈利计划</a><br><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/coin-change/">完全背包：力扣-322-零钱兑换</a><br><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/coin-change-2/">完全背包：力扣-518-零钱兑换 II</a><br><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/form-largest-integer-with-digits-that-add-up-to-target/">完全背包：力扣-1449-数位成本和为目标值的最大数字</a></p>
+</blockquote>
+<h3 id="二分查找"><a href="#二分查找" class="headerlink" title="二分查找"></a>二分查找</h3><blockquote>
+<p><a href="#%E5%8A%9B%E6%89%A3-1235-%E8%A7%84%E5%88%92%E5%85%BC%E8%81%8C%E5%B7%A5%E4%BD%9C">力扣-1235-规划兼职工作</a><br><a href="#%E5%8A%9B%E6%89%A3-33-%E6%90%9C%E7%B4%A2%E6%97%8B%E8%BD%AC%E6%8E%92%E5%BA%8F%E6%95%B0%E7%BB%84">力扣-33-搜索旋转排序数组</a></p>
+</blockquote>
+<h3 id="回溯"><a href="#回溯" class="headerlink" title="回溯"></a>回溯</h3><blockquote>
+<p><a href="#%E5%8A%9B%E6%89%A3-15-%E4%B8%89%E6%95%B0%E4%B9%8B%E5%92%8C">力扣-15-三数之和</a></p>
+</blockquote>
+<h3 id="双指针"><a href="#双指针" class="headerlink" title="双指针"></a>双指针</h3><blockquote>
+<p><a href="#%E5%8A%9B%E6%89%A3-15-%E4%B8%89%E6%95%B0%E4%B9%8B%E5%92%8C">力扣-15-三数之和</a></p>
+</blockquote>
+<h2 id="题目杂记"><a href="#题目杂记" class="headerlink" title="题目杂记"></a>题目杂记</h2><h3 id="力扣-96-不同的二叉搜索树"><a href="#力扣-96-不同的二叉搜索树" class="headerlink" title="力扣 96-不同的二叉搜索树"></a>力扣 96-不同的二叉搜索树</h3><blockquote>
+<p><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/unique-binary-search-trees/">链接</a></p>
+</blockquote>
+<h3 id="力扣-33-搜索旋转排序数组"><a href="#力扣-33-搜索旋转排序数组" class="headerlink" title="力扣 33-搜索旋转排序数组"></a>力扣 33-搜索旋转排序数组</h3><blockquote>
+<p><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/search-in-rotated-sorted-array/">链接</a></p>
+</blockquote>
+<p>题目简介</p>
+<blockquote>
+<p><img src="/img/leetcode/9.png" srcset="/img/loading.gif" lazyload alt="图 9"></p>
+</blockquote>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><code class="hljs C++"><span class="hljs-comment">//先二分找出旋转点，然后再来两个二分分段查找</span><br><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">search</span><span class="hljs-params">(vector&lt;<span class="hljs-type">int</span>&gt;&amp; nums, <span class="hljs-type">int</span> target)</span> </span>&#123;<br>    <span class="hljs-type">int</span> pos = <span class="hljs-built_in">foo</span>(nums);<br>    <span class="hljs-type">int</span> ret;<br>    <span class="hljs-keyword">if</span> ((ret = <span class="hljs-built_in">goo</span>(nums, target, <span class="hljs-number">0</span>, pos + <span class="hljs-number">1</span>)) != <span class="hljs-number">-1</span>) <span class="hljs-keyword">return</span> ret;<br>    <span class="hljs-keyword">return</span> <span class="hljs-built_in">goo</span>(nums, target, pos + <span class="hljs-number">1</span>, nums.<span class="hljs-built_in">size</span>());<br>&#125;<br><br><span class="hljs-comment">// 二分查找</span><br><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">goo</span><span class="hljs-params">(vector&lt;<span class="hljs-type">int</span>&gt;&amp; nums, <span class="hljs-type">int</span> target, <span class="hljs-type">int</span> l, <span class="hljs-type">int</span> h)</span> </span>&#123;<br>    <span class="hljs-keyword">while</span> (l &lt; h) &#123;<br>        <span class="hljs-type">int</span> mid = l + (h - l) / <span class="hljs-number">2</span>;<br>        <span class="hljs-keyword">if</span> (nums[mid] &gt; target) h = mid;<br>        <span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (nums[mid] == target) <span class="hljs-keyword">return</span> mid;<br>        <span class="hljs-keyword">else</span> l = mid + <span class="hljs-number">1</span>;<br>    &#125;<br>    <span class="hljs-keyword">return</span> <span class="hljs-number">-1</span>;<br>&#125;<br><br><span class="hljs-comment">// 二分找到最大的数</span><br><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">foo</span><span class="hljs-params">(vector&lt;<span class="hljs-type">int</span>&gt;&amp; nums)</span> </span>&#123;<br>    <span class="hljs-type">int</span> i = <span class="hljs-number">0</span>, j = nums.<span class="hljs-built_in">size</span>() - <span class="hljs-number">1</span>, mid;<br>    <span class="hljs-keyword">while</span> (i &lt; j - <span class="hljs-number">1</span>) &#123;<br>        mid = i + (j - i) / <span class="hljs-number">2</span>;<br>        <span class="hljs-keyword">if</span> (nums[mid] &lt; nums[j]) j = mid;<br>        <span class="hljs-keyword">else</span> i = mid;<br>    &#125;<br>    <span class="hljs-comment">//cout &lt;&lt; nums[i] &lt;&lt; endl;</span><br>    <span class="hljs-keyword">return</span> i;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+
+<h3 id="力扣-15-三数之和"><a href="#力扣-15-三数之和" class="headerlink" title="力扣 15-三数之和"></a>力扣 15-三数之和</h3><blockquote>
+<p><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/3sum/">链接</a></p>
+</blockquote>
+<p>题目简介</p>
+<blockquote>
+<p><img src="/img/leetcode/7.png" srcset="/img/loading.gif" lazyload alt="图 7"></p>
+</blockquote>
+<br>
+
+<p>题目解析</p>
+<blockquote>
+<p>该题可以采用回溯和双指针两种方法解决。为什么要记录，第一学习该类问题回溯去重的方法，第二学习双指针含义以及使用方式。假设数组为 [1, 1, 0, 0, -1, -1].</p>
+</blockquote>
+<blockquote>
+<p>先是回溯，下图是回溯时的递归示意图：<br><img src="/img/leetcode/8.png" srcset="/img/loading.gif" lazyload alt="图 8"><br>可以看到重复主要是由于存在相同的元素，而且同一组数还可能因为排列的顺序不同而导致重复，如 [1,-1,0], [1,0,-1]…<br>可以通过对数组排序，回溯时记录上一个选取的下标，选取后面的数时，只取上一个下标后面的数，这样就能避免重新排列而导致的重复。如何去掉相同元素导致的重复呢？递归时，从图中可以看到（部分采用红圈标出），这种情况的重复出现在，以某个选中的数字为根，其包含的分支中，同一层有相同的元素，如果同一层相同的元素只访问一次就能避免这种重复。另外，需要注意（黄圈标出），不同层可以存在相同的元素。具体方法如下代码：</p>
+</blockquote>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><code class="hljs C++">vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt; <span class="hljs-built_in">UsingBacktrace</span>(vector&lt;<span class="hljs-type">int</span>&gt;&amp; nums) &#123;<br>        <span class="hljs-built_in">sort</span>(nums.<span class="hljs-built_in">begin</span>(), nums.<span class="hljs-built_in">end</span>());<br>        <span class="hljs-built_in">backtrace</span>(<span class="hljs-number">-1</span>, <span class="hljs-number">0</span>, nums);<br>        <span class="hljs-keyword">return</span> ans;<br>&#125;<br><br>vector&lt;<span class="hljs-type">int</span>&gt; tmp;<br>vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt; ans;<br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">backtrace</span><span class="hljs-params">(<span class="hljs-type">int</span> idx, <span class="hljs-type">int</span> sum, vector&lt;<span class="hljs-type">int</span>&gt;&amp; nums)</span> </span>&#123;<br>    <span class="hljs-keyword">if</span> (tmp.<span class="hljs-built_in">size</span>() == <span class="hljs-number">3</span>) &#123;<br>        <span class="hljs-keyword">if</span> (sum == <span class="hljs-number">0</span>) &#123;<br>            ans.<span class="hljs-built_in">push_back</span>(tmp);<br>        &#125;<br>        <span class="hljs-keyword">return</span>;<br>    &#125;<br>    <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = idx + <span class="hljs-number">1</span>; i &lt; nums.<span class="hljs-built_in">size</span>(); i++) &#123;<br>        <span class="hljs-comment">// 这种类型的回溯剪枝</span><br>        <span class="hljs-comment">// i != idx + 1 放掉那些不同层却相同的情况，如 [1, 2, 2]</span><br>        <span class="hljs-comment">// nums[i - 1] == nums[i] 过滤掉那些同一层相同的情况</span><br>        <span class="hljs-comment">// 为什么可以，因为排序后，相同元素都在一起，在每一层，</span><br>        <span class="hljs-comment">// 对于相同的一组元素，只取第一个，后面的全部跳过</span><br>        <span class="hljs-keyword">if</span> (i != idx + <span class="hljs-number">1</span> &amp;&amp; nums[i - <span class="hljs-number">1</span>] == nums[i]) <span class="hljs-keyword">continue</span>;<br>        tmp.<span class="hljs-built_in">push_back</span>(nums[i]);<br>        <span class="hljs-built_in">backtrace</span>(i, sum + nums[i], nums);<br>        tmp.<span class="hljs-built_in">pop_back</span>();<br>    &#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<blockquote>
+<p>然而该题使用回溯会超时，需要使用双指针，关于双指针的描述，<u>官方题解写得十分好</u>，建议阅读，这里这附上代码：</p>
+</blockquote>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><code class="hljs C++">vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt; <span class="hljs-built_in">UsingTwoPointers</span>(vector&lt;<span class="hljs-type">int</span>&gt;&amp; nums) &#123;<br>        vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt; ans;<br>        <span class="hljs-built_in">sort</span>(nums.<span class="hljs-built_in">begin</span>(), nums.<span class="hljs-built_in">end</span>());<br><br>        <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; nums.<span class="hljs-built_in">size</span>(); i++) &#123;<br>            <span class="hljs-keyword">if</span> (i != <span class="hljs-number">0</span> &amp;&amp; nums[i<span class="hljs-number">-1</span>] == nums[i]) <span class="hljs-keyword">continue</span>;<br>            <span class="hljs-type">int</span> k = nums.<span class="hljs-built_in">size</span>() - <span class="hljs-number">1</span>;<br><br>            <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> j = i + <span class="hljs-number">1</span>; j &lt; nums.<span class="hljs-built_in">size</span>(); j++) &#123;<br>                <span class="hljs-comment">// find a + b + c = 0</span><br>                <span class="hljs-comment">// a, b 确定，那么 c 也就确定了，并且随着 b 的增大，c 一定会减小</span><br>                <span class="hljs-keyword">if</span> (j != i + <span class="hljs-number">1</span> &amp;&amp; nums[j<span class="hljs-number">-1</span>] == nums[j]) <span class="hljs-keyword">continue</span>;<br><br>                <span class="hljs-keyword">while</span> (k &gt; j &amp;&amp; nums[i] + nums[j] + nums[k] &gt; <span class="hljs-number">0</span>) k--;<br><br>                <span class="hljs-keyword">if</span> (k &gt; j &amp;&amp; nums[i] + nums[j] + nums[k] == <span class="hljs-number">0</span>) &#123;<br>                    ans.<span class="hljs-built_in">push_back</span>(&#123;nums[i], nums[j], nums[k]&#125;);<br>                &#125;<br>            &#125;<br>        &#125;<br>        <span class="hljs-keyword">return</span> ans;<br>    &#125;<br></code></pre></td></tr></table></figure>
+
+
+<h3 id="力扣-1235-规划兼职工作"><a href="#力扣-1235-规划兼职工作" class="headerlink" title="力扣 1235-规划兼职工作"></a>力扣 1235-规划兼职工作</h3><blockquote>
+<p><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/maximum-profit-in-job-scheduling/">链接</a></p>
+</blockquote>
+<p>题目简介</p>
+<blockquote>
+<p>每个任务包括三个参数：开始时间、结束时间、报酬。现在有一堆任务，你可以从中选择任务来做，使得报酬最大，但所选择的任务的工作时间不能有重叠，如下图，选择最底下三个：<br><img src="/img/leetcode/1.png" srcset="/img/loading.gif" lazyload alt="图 1"></p>
+</blockquote>
+<br>
+
+<p>题目解析</p>
+<blockquote>
+<p>这个题目一看就知道用动态规划，但是状态转移方程没那么简单，最开始的想法很简单：<br>对于某个任务，它可以从在它之前的、与它不冲突的任务转移过来，那么只需要记录从这些任务转移来的最大报酬，再加上该任务的报酬，那么就能得出，做完该任务时取得的最大报酬，如下图，未连线的任务之间表示冲突：<br><img src="/img/leetcode/2.png" srcset="/img/loading.gif" lazyload alt="图 2"><br>如 F 任务可以分别由 C、D、E 任务转移过来。那么将这些任务以开始时间从小到大排序后，就能写出如下的代码：</p>
+</blockquote>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><code class="hljs C++"><span class="hljs-comment">// job = &#123; startTime, endTime, profits &#125;</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">foo</span><span class="hljs-params">(vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt;&amp; jobs)</span> </span>&#123;<br>    <span class="hljs-built_in">sort</span>(jobs.<span class="hljs-built_in">begin</span>(), jobs.<span class="hljs-built_in">end</span>()); <span class="hljs-comment">// 以开始时间递增排序</span><br>    vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt; <span class="hljs-built_in">from</span>(jobs.<span class="hljs-built_in">size</span>());<br><br>    <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; jobs.<span class="hljs-built_in">size</span>(); i++) &#123;<br>        <span class="hljs-comment">// 因为 job 以开始时间排序，所以可以二分查找，</span><br>        <span class="hljs-comment">// 找到第一个大于等于任务 i 结束时间的任务</span><br>        <span class="hljs-comment">// 查找到第一个大于等于任务 i 结束时间开始的任务后，后面的都可以添加到 i 到 from 了</span><br><br>        <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> j = i + <span class="hljs-number">1</span>; j &lt; jobs.<span class="hljs-built_in">size</span>(); j++) &#123;<br>            <span class="hljs-comment">// 如果任务 j 在任务 i 结束后开始，</span><br>            <span class="hljs-comment">// 那么任务 j 可以从任务 i 转移过来</span><br>            <span class="hljs-keyword">if</span> (jobs[i][<span class="hljs-number">1</span>] &lt;= jobs[j][<span class="hljs-number">0</span>]) &#123;<br>                from[j].<span class="hljs-built_in">push_back</span>(i);<br>            &#125;<br>        &#125;<br>    &#125;<br><br>    <span class="hljs-comment">// dp 过程</span><br>    <span class="hljs-type">int</span> dp[jobs.<span class="hljs-built_in">size</span>()] = &#123; <span class="hljs-number">0</span> &#125;;<br>    <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">0</span>; i &lt; jobs.<span class="hljs-built_in">size</span>(); i++) &#123;<br>        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> f: from[i]) &#123;<br>            dp[i] = <span class="hljs-built_in">max</span>(dp[i], dp[f]);<br>        &#125;<br>        dp[i] += jobs[i][<span class="hljs-number">2</span>];<br>    &#125;<br><br>    cout &lt;&lt; *<span class="hljs-built_in">max_element</span>(dp, dp + jobs.<span class="hljs-built_in">size</span>()) &lt;&lt; endl;<br>&#125;<br></code></pre></td></tr></table></figure>
+<blockquote>
+<p>上面代码正确但不够快，时间复杂度未 $O(n^2)$，过不了该题。<br><u>在一次分析可知，里面存在重复计算</u>，比如从 E 转移到 F 就已经计算了从 C，D 转移来的报酬，不需要再单独计算从它们转移来的报酬了，因为必然是小于从 E 转移来的。<br><u>事实上这个问题类似背包问题</u>，对于一个任务 i，你可以选择做也可以选择不做，若选择不做，那么截止到任务 i 时的报酬 dp[i] 就需要从 dp[i-1] 转移过来，如果选择做，那么 dp[i] 需要从最近一次且与任务 i 不冲突的任务，假设为 j，转移过来，即 dp[i] &#x3D; dp[j] + profit[i]，最后在两者中取最大即可。找最近一次且不冲突的任务，可以采用二分，只需要将任务以结束时间递增排序，然后在其中找第一个小于等于当前任务开始时间的任务即可，所以可以写出如下的代码：</p>
+</blockquote>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><code class="hljs C++"><span class="hljs-comment">// job = &#123; startTime, endTime, profits &#125;</span><br><span class="hljs-function"><span class="hljs-type">void</span> <span class="hljs-title">foo</span><span class="hljs-params">(vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt;&amp; jobs)</span> </span>&#123;<br>    <span class="hljs-comment">//以结束时间递增排序</span><br>    <span class="hljs-built_in">sort</span>(jobs.<span class="hljs-built_in">begin</span>(), jobs.<span class="hljs-built_in">end</span>(), <br>    [](<span class="hljs-type">const</span> vector&lt;<span class="hljs-type">int</span>&gt;&amp; a, <span class="hljs-type">const</span> vector&lt;<span class="hljs-type">int</span>&gt;&amp; b) -&gt;<span class="hljs-type">bool</span> &#123;<br>            <span class="hljs-keyword">return</span> a[<span class="hljs-number">1</span>] &lt; b[<span class="hljs-number">1</span>];<br>            &#125;);<br><br>        <span class="hljs-comment">// dp[i] = p 截至任务 i 时的最大报酬</span><br>        unordered_map&lt;<span class="hljs-type">int</span>, <span class="hljs-type">int</span>&gt; dp;<br>        dp[<span class="hljs-number">0</span>] = jobs[<span class="hljs-number">0</span>][<span class="hljs-number">2</span>];<br><br>        <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">1</span>; i &lt; jobs.<span class="hljs-built_in">size</span>(); i++) &#123;<br>            vector&lt;<span class="hljs-type">int</span>&gt; tmp = &#123; jobs[i][<span class="hljs-number">1</span>] &#125;;<br>            <span class="hljs-keyword">auto</span> last = <span class="hljs-built_in">upper_bound</span>(jobs.<span class="hljs-built_in">begin</span>(), jobs.<span class="hljs-built_in">end</span>(), tmp,<br>                [](<span class="hljs-type">const</span> vector&lt;<span class="hljs-type">int</span>&gt;&amp; a, <span class="hljs-type">const</span> vector&lt;<span class="hljs-type">int</span>&gt;&amp; b) -&gt; <span class="hljs-type">bool</span> &#123;<br>                    <span class="hljs-keyword">return</span> a[<span class="hljs-number">0</span>] &lt; b[<span class="hljs-number">0</span>];<br>                &#125;);<br><br>            <span class="hljs-comment">// 找到的是第一个大于目标的值，prev(last) 表示取前一个</span><br>            <span class="hljs-comment">// 就是最后一个小于等于目标值的了</span><br>            dp[i] = <span class="hljs-built_in">max</span>(dp[<span class="hljs-built_in">prev</span>(last) - jobs.<span class="hljs-built_in">begin</span>()] + jobs[i][<span class="hljs-number">2</span>], dp[i - <span class="hljs-number">1</span>]);<br>        &#125;<br><br>        cout &lt;&lt; dp[jobs.<span class="hljs-built_in">size</span>() - <span class="hljs-number">1</span>] &lt;&lt; endl;<br>&#125;<br></code></pre></td></tr></table></figure>
+
+<p>其他知识点</p>
+<blockquote>
+<p>std::upper_bound(begin, end, val, pred) 函数<br>该函数在序列中二分查找，返回第一个大于目标值 val 的迭代器，用法可以看上面</p>
+</blockquote>
+<blockquote>
+<p>另外，还可以自己写类似上面的二分算法：</p>
+</blockquote>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><code class="hljs C++"><span class="hljs-comment">// 返回第一个大于目标值 val 的元素的下标</span><br><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">BinarySearch</span><span class="hljs-params">(vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt;&amp; jobs, <span class="hljs-type">int</span> val)</span> </span>&#123;<br>        <span class="hljs-comment">// find the smallest v so that v &gt; val</span><br>        <span class="hljs-type">int</span> l = <span class="hljs-number">0</span>, r = jobs.<span class="hljs-built_in">size</span>(), mid;<br>        <span class="hljs-keyword">while</span> (l &lt; r) &#123;<br>            mid = l + (r - l) / <span class="hljs-number">2</span>;<br>            <span class="hljs-keyword">if</span> (jobs[mid][<span class="hljs-number">0</span>] &lt;= val) l = mid + <span class="hljs-number">1</span>;<br>            <span class="hljs-keyword">else</span> r = mid;<br>        &#125;<br><br>        <span class="hljs-keyword">return</span> l;<br>    &#125;<br></code></pre></td></tr></table></figure>
+<blockquote>
+<p><u>个人觉得二分算法最麻烦的地方在于，应该返回什么，这里可以这样分析</u>：<br>从 while 循环退出有两种可能:</p>
+<blockquote>
+<p>l &#x3D;&#x3D; r. 那么到达该种局面有两种情况：<br>A. $V_{mid} &lt;&#x3D; val$ 即 mid &#x3D; r - 1，很明显应该返回 r&#x2F;l<br>B. $V_{mid} &gt; val$ 即 mid &#x3D; l，很明显，应该返回 l<br>综上，返回 l</p>
+</blockquote>
+</blockquote>
+<blockquote>
+<blockquote>
+<p>l &#x3D;&#x3D; r + 1. 那么达到该种局面有两种情况：<br>A. $V_{mid} &lt;&#x3D; val$ 即 mid &#x3D; r，不可能<br>B. $V_{mid} &gt; val$ 即 mid &#x3D; l - 1，不可能</p>
+</blockquote>
+</blockquote>
+<h3 id="力扣-894-所有可能的真二叉树"><a href="#力扣-894-所有可能的真二叉树" class="headerlink" title="力扣 894-所有可能的真二叉树"></a>力扣 894-所有可能的真二叉树</h3><blockquote>
+<p><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/all-possible-full-binary-trees/submissions/">链接</a><br><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/unique-binary-search-trees-ii/">相似题目</a></p>
+</blockquote>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br></pre></td><td class="code"><pre><code class="hljs C++"><span class="hljs-comment">/**</span><br><span class="hljs-comment"> * Definition for a binary tree node.</span><br><span class="hljs-comment"> * struct TreeNode &#123;</span><br><span class="hljs-comment"> *     int val;</span><br><span class="hljs-comment"> *     TreeNode *left;</span><br><span class="hljs-comment"> *     TreeNode *right;</span><br><span class="hljs-comment"> *     TreeNode() : val(0), left(nullptr), right(nullptr) &#123;&#125;</span><br><span class="hljs-comment"> *     TreeNode(int x) : val(x), left(nullptr), right(nullptr) &#123;&#125;</span><br><span class="hljs-comment"> *     TreeNode(int x, TreeNode *left, TreeNode *right) : val(x), left(left), right(right) &#123;&#125;</span><br><span class="hljs-comment"> * &#125;;</span><br><span class="hljs-comment"> */</span><br><span class="hljs-keyword">class</span> <span class="hljs-title class_">Solution</span> &#123;<br><span class="hljs-keyword">public</span>:<br><br>    <span class="hljs-comment">// 加一个哈希，就变成了自顶向下的动态规划了（记忆化搜索）</span><br>    unordered_map&lt;<span class="hljs-type">int</span>, vector&lt;TreeNode*&gt;&gt; history;<br><br>    <span class="hljs-function">vector&lt;TreeNode*&gt; <span class="hljs-title">allPossibleFBT</span><span class="hljs-params">(<span class="hljs-type">int</span> n)</span> </span>&#123;<br>        <span class="hljs-keyword">if</span> (history.<span class="hljs-built_in">count</span>(n) != <span class="hljs-number">0</span>) <span class="hljs-keyword">return</span> history[n];<br>        vector&lt;TreeNode*&gt; roots;<br>        <span class="hljs-comment">// 如果只有一个节点，就不需要拆分了，只有一种情况</span><br>        <span class="hljs-comment">// 老实说，当有三个节点时，也不用拆分，也只有一种情况</span><br>        <span class="hljs-comment">//   *</span><br>        <span class="hljs-comment">//  / \</span><br><span class="hljs-comment">        // *   *</span><br>        <span class="hljs-keyword">if</span> (n == <span class="hljs-number">1</span>) &#123;<br>            roots.<span class="hljs-built_in">push_back</span>(<span class="hljs-keyword">new</span> <span class="hljs-built_in">TreeNode</span>(<span class="hljs-number">0</span>));<br>            <span class="hljs-keyword">return</span> roots;<br>        &#125;<br><br>        <span class="hljs-comment">// 因为一个节点的子节点个数要么为 0, 要么为 2，这是个递归定义</span><br>        <span class="hljs-comment">// 所以该子树（加上该节点）的节点个数为奇数</span><br>        <span class="hljs-comment">// i 表示以当前节点为根（总结点个数为参数 n）时，左子树节点个数</span><br>        <span class="hljs-comment">// allPossibleFBT(i) 也就表示总结点个数为 i 时，满足题目条件的所有二叉树集合</span><br>        <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">1</span>; i &lt; n - <span class="hljs-number">1</span>; i += <span class="hljs-number">2</span>) &#123;<br>            <span class="hljs-keyword">auto</span> leftRoots = <span class="hljs-built_in">allPossibleFBT</span>(i);<br>            <span class="hljs-keyword">auto</span> rightRoots = <span class="hljs-built_in">allPossibleFBT</span>(n - i - <span class="hljs-number">1</span>);<br>            <br>            <span class="hljs-comment">// 当前节点的左右子树的所有可能都求出来了，</span><br>            <span class="hljs-comment">// 那么以当前节点（下面的 new）为根的所有可能的二叉树，就可以通过排列组合计算了</span><br>            <span class="hljs-comment">// 由于左右子树的结构都符合题目，组合出来自然也符合题目</span><br>            <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> left: leftRoots) &#123;<br>                <span class="hljs-keyword">for</span> (<span class="hljs-keyword">auto</span> right: rightRoots) &#123;<br>                    <span class="hljs-keyword">auto</span> node = <span class="hljs-keyword">new</span> <span class="hljs-built_in">TreeNode</span>(<span class="hljs-number">0</span>);<br>                    node-&gt;left = left;<br>                    node-&gt;right = right;<br>                    roots.<span class="hljs-built_in">push_back</span>(node);<br>                &#125;<br>            &#125;<br>        &#125;<br><br>        history[n] = roots;<br>        <span class="hljs-keyword">return</span> roots;<br>    &#125;<br>&#125;;<br></code></pre></td></tr></table></figure>
+
+<h3 id="力扣-剑指-Offer-II-091-粉刷房子"><a href="#力扣-剑指-Offer-II-091-粉刷房子" class="headerlink" title="力扣 剑指 Offer II 091. 粉刷房子"></a>力扣 剑指 Offer II 091. 粉刷房子</h3><blockquote>
+<p><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/JEj789/">链接</a></p>
+</blockquote>
+<p>题目简介<br><img src="/img/leetcode/3.png" srcset="/img/loading.gif" lazyload></p>
+<p>先上题解</p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><code class="hljs C++"><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">dynamicProgramming</span><span class="hljs-params">(vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt;&amp; costs)</span> </span>&#123;<br>        <span class="hljs-comment">// dp[i][0], dp[i][1], dp[i][2]</span><br>        <span class="hljs-comment">// 分别表示使用 0，1，2 三种颜色刷完房子 i 时的最小开销</span><br>        <span class="hljs-comment">// dp[i][0] = min&#123;dp[i-1][1], dp[i-1][2]&#125; + cost[i][0]</span><br>        <span class="hljs-comment">// ...</span><br>        vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt; dp;<br>        <span class="hljs-function">vector&lt;<span class="hljs-type">int</span>&gt; <span class="hljs-title">tmp</span><span class="hljs-params">(<span class="hljs-number">3</span>)</span></span>;<br>        dp.<span class="hljs-built_in">resize</span>(costs.<span class="hljs-built_in">size</span>(), tmp);<br>        dp[<span class="hljs-number">0</span>] = costs[<span class="hljs-number">0</span>];<br><br>        <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">1</span>; i &lt; costs.<span class="hljs-built_in">size</span>(); i++) &#123;<br>            dp[i][<span class="hljs-number">0</span>] = <span class="hljs-built_in">min</span>(dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">1</span>], dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">2</span>]) + costs[i][<span class="hljs-number">0</span>];<br>            dp[i][<span class="hljs-number">1</span>] = <span class="hljs-built_in">min</span>(dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">0</span>], dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">2</span>]) + costs[i][<span class="hljs-number">1</span>];<br>            dp[i][<span class="hljs-number">2</span>] = <span class="hljs-built_in">min</span>(dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">1</span>], dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">0</span>]) + costs[i][<span class="hljs-number">2</span>];<br>        &#125;<br><br>        <span class="hljs-keyword">return</span> <span class="hljs-built_in">min</span>(dp.<span class="hljs-built_in">back</span>()[<span class="hljs-number">0</span>], <span class="hljs-built_in">min</span>(dp.<span class="hljs-built_in">back</span>()[<span class="hljs-number">1</span>], dp.<span class="hljs-built_in">back</span>()[<span class="hljs-number">2</span>]));<br>    &#125;<br></code></pre></td></tr></table></figure>
+
+<p>为什么可以这样做呢？看下图分析：<br><img src="/img/leetcode/4.png" srcset="/img/loading.gif" lazyload><br>可以看到房子乙无论染哪种颜色，都有两种可能的开销，总共有六种情况，如果只有两个房子，那么比较这六种就能得出最小开销。现在增加一个房子丙，对于丙的任一一种染色方案，都有四种可能的开销，总共一十二种。</p>
+<p><u>事实上，这里存在重复的计算</u>，假如房子乙染了 A 颜色，房子丙染了 B 颜色，在计算最小开销时，由于房子丙-B 的成本已知，那么乙-A1，乙-A2 两种方案只有一种会被采用，即最小的那一种，也就是说，房子乙没必要为每种染色保留所有可能的开销，只需要保留最小的即可。对房子丙同理。真好的剪枝啊。<u>突然发现这道题和下面的题关于状态的分析好像啊</u>。</p>
+<h3 id="力扣-123-买卖股票的最佳时机-III"><a href="#力扣-123-买卖股票的最佳时机-III" class="headerlink" title="力扣 123-买卖股票的最佳时机 III"></a>力扣 123-买卖股票的最佳时机 III</h3><blockquote>
+<p><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/best-time-to-buy-and-sell-stock-iii/">链接</a></p>
+</blockquote>
+<p><img src="/img/leetcode/5.png" srcset="/img/loading.gif" lazyload></p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br></pre></td><td class="code"><pre><code class="hljs C++"><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">maxProfit</span><span class="hljs-params">(vector&lt;<span class="hljs-type">int</span>&gt;&amp; prices)</span> </span>&#123;<br>        <span class="hljs-comment">// write code here</span><br>        <span class="hljs-comment">/*</span><br><span class="hljs-comment">          最多对股票进行两笔交易，那么在每一天你必然处于以下五种状态之一：</span><br><span class="hljs-comment">          1. 没有买卖任何股票</span><br><span class="hljs-comment">          2. 已完成第一笔交易买进（在今日或以前买进）</span><br><span class="hljs-comment">          3. 已完成第一笔交易卖出（在今日或以前卖出）</span><br><span class="hljs-comment">          4. 已完成第二笔交易买入（在今日或以前买入）</span><br><span class="hljs-comment">          5. 已完成第二笔交易卖出（在今日或以前卖出）</span><br><span class="hljs-comment">        </span><br><span class="hljs-comment">          无论处于哪一种状态，你都有一个收益，题目的答案就是处于状态5的且最大的收益</span><br><span class="hljs-comment">          设 dp[i][j] 为第 i 天处于状态 j 时的最大收益</span><br><span class="hljs-comment">          状态 1 的收益始终为零，根本不用记录，下面考虑状态转移：</span><br><span class="hljs-comment">        </span><br><span class="hljs-comment">          状态 2 的状态转移：dp[i][2] = max(dp[i-1][2], -prices[i])</span><br><span class="hljs-comment">          为什么是这样？第 i 天处于状态 2，有两种可能：</span><br><span class="hljs-comment">             1）维持现状（之前就处于该状态）；</span><br><span class="hljs-comment">             2）刚刚进入状态 2，也就是买了今天的股票，收益自然为价格的负数</span><br><span class="hljs-comment">        </span><br><span class="hljs-comment">          状态 3 的状态转移：dp[i][3] = max(dp[i-1][3], dp[i-1][2] + prices[i])</span><br><span class="hljs-comment">          为什么是这样？第 i 天处于状态 3，有两种可能：</span><br><span class="hljs-comment">             1）维持现状；</span><br><span class="hljs-comment">             2）刚刚进入状态 3，也就是在今天卖出第一笔买入的股票，</span><br><span class="hljs-comment">                收益自然需要加上卖出的钱，需要注意，是买入的收益+卖出的收益</span><br><span class="hljs-comment">        </span><br><span class="hljs-comment">          状态 4 的状态转移：dp[i][4] = max(dp[i-1][4], dp[i-1][3] - prices[i])</span><br><span class="hljs-comment">          为什么？不解释，同上</span><br><span class="hljs-comment">        </span><br><span class="hljs-comment">          状态 5 的状态转移：dp[i][5] = max(dp[i-1][5], dp[i-1][4] + prices[i])</span><br><span class="hljs-comment">          为什么？不解释，同上</span><br><span class="hljs-comment"></span><br><span class="hljs-comment">        */</span><br>        <br>        <span class="hljs-comment">// 综上所述，可以写出下面的代码：</span><br>        vector&lt;vector&lt;<span class="hljs-type">int</span>&gt;&gt;<span class="hljs-built_in">dp</span>(prices.<span class="hljs-built_in">size</span>(), <span class="hljs-built_in">vector</span>&lt;<span class="hljs-type">int</span>&gt;(<span class="hljs-number">5</span>));<br>        dp[<span class="hljs-number">0</span>][<span class="hljs-number">0</span>] = <span class="hljs-number">0</span>;<br>        dp[<span class="hljs-number">0</span>][<span class="hljs-number">1</span>] = -prices[<span class="hljs-number">0</span>];<br>        dp[<span class="hljs-number">0</span>][<span class="hljs-number">2</span>] = <span class="hljs-number">0</span>; <span class="hljs-comment">// 同一天买入又卖出可不为0吗</span><br>        dp[<span class="hljs-number">0</span>][<span class="hljs-number">3</span>] = -prices[<span class="hljs-number">0</span>];<br>        dp[<span class="hljs-number">0</span>][<span class="hljs-number">4</span>] = <span class="hljs-number">0</span>; <span class="hljs-comment">// 可不为零吗</span><br>        <br>        <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">1</span>; i &lt; prices.<span class="hljs-built_in">size</span>(); i++) &#123;<br>            dp[i][<span class="hljs-number">1</span>] = <span class="hljs-built_in">max</span>(dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">1</span>], -prices[i]);<br>            dp[i][<span class="hljs-number">2</span>] = <span class="hljs-built_in">max</span>(dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">2</span>], dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">1</span>] + prices[i]);<br>            dp[i][<span class="hljs-number">3</span>] = <span class="hljs-built_in">max</span>(dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">3</span>], dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">2</span>] - prices[i]);<br>            dp[i][<span class="hljs-number">4</span>] = <span class="hljs-built_in">max</span>(dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">4</span>], dp[i<span class="hljs-number">-1</span>][<span class="hljs-number">3</span>] + prices[i]);<br>        &#125;<br>    <br>        <span class="hljs-keyword">return</span> dp.<span class="hljs-built_in">back</span>().<span class="hljs-built_in">back</span>();<br>        <br>        <span class="hljs-comment">/*</span><br><span class="hljs-comment">        </span><br><span class="hljs-comment">        另外，由于 dp[i] 只与 dp[i-1] 有关，所以可以压缩以下空间</span><br><span class="hljs-comment">        对上面的四个状态（状态1不记录）分配采用四个变量记录：</span><br><span class="hljs-comment">        buy1  --&gt; 状态 2</span><br><span class="hljs-comment">        sell1 --&gt; 状态 3</span><br><span class="hljs-comment">        buy2  --&gt; 状态 4</span><br><span class="hljs-comment">        sell2 --&gt; 状态 5</span><br><span class="hljs-comment"></span><br><span class="hljs-comment">        */</span><br>        <br>        <span class="hljs-comment">// 可以写出下面的代码：</span><br>        <span class="hljs-type">int</span> buy1 = -prices[<span class="hljs-number">0</span>];<br>        <span class="hljs-type">int</span> sell1 = <span class="hljs-number">0</span>;<br>        <span class="hljs-type">int</span> buy2 = -prices[<span class="hljs-number">0</span>];<br>        <span class="hljs-type">int</span> sell2 = <span class="hljs-number">0</span>;<br>        <br>        <span class="hljs-keyword">for</span> (<span class="hljs-type">int</span> i = <span class="hljs-number">1</span>; i &lt; prices.<span class="hljs-built_in">size</span>(); i++) &#123;<br>            buy1 = <span class="hljs-built_in">max</span>(buy1, -prices[i]);<br>            sell1 = <span class="hljs-built_in">max</span>(sell1, buy1 + prices[i]);<br>            buy2 = <span class="hljs-built_in">max</span>(buy2, sell1 - prices[i]);<br>            sell2 = <span class="hljs-built_in">max</span>(sell2, buy2 + prices[i]);<br>        &#125;<br>        <br>        <span class="hljs-keyword">return</span> sell2;<br>    &#125;<br></code></pre></td></tr></table></figure>
+
+<h3 id="力扣-124-二叉树中的最大路径和"><a href="#力扣-124-二叉树中的最大路径和" class="headerlink" title="力扣 124-二叉树中的最大路径和"></a>力扣 124-二叉树中的最大路径和</h3><blockquote>
+<p><a target="_blank" rel="noopener" href="https://leetcode.cn/problems/binary-tree-maximum-path-sum/">链接</a></p>
+</blockquote>
+<p><img src="/img/leetcode/6.png" srcset="/img/loading.gif" lazyload></p>
+<figure class="highlight c++"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><code class="hljs C++"><span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">maxPathSum</span><span class="hljs-params">(TreeNode* root)</span> </span>&#123;<br>        <span class="hljs-keyword">auto</span> ret = <span class="hljs-built_in">recursion</span>(root);<br><br>        <span class="hljs-comment">//情况3、4、6</span><br>        <span class="hljs-keyword">return</span> <span class="hljs-built_in">max</span>(ans, ret);<br>    &#125;<br><br>    <span class="hljs-comment">/*</span><br><span class="hljs-comment">        对于一颗以 root 为根的树，和最大的路径有以下几种可能：</span><br><span class="hljs-comment">        1. 在左子树取得</span><br><span class="hljs-comment">        2. 在右子树取得</span><br><span class="hljs-comment">        3. 在根到左子树的某个节点取得（不一定到叶节点）</span><br><span class="hljs-comment">        4. 在根到右子树的某个节点取得（不一定到叶节点）</span><br><span class="hljs-comment">        5. 在左子树某个节点 + 根 + 右子树的某个节点取得（不一定到叶节点）</span><br><span class="hljs-comment">        6. 在根节点取得</span><br><span class="hljs-comment"></span><br><span class="hljs-comment">        遍历到当前节点时，由于可能需要借助根连接路径，因此当节点返回时，需要返回</span><br><span class="hljs-comment">        3、4、6 三种情况中的最大的一种</span><br><span class="hljs-comment"></span><br><span class="hljs-comment">        其他情况可以直接采用一个变量记录取得的最大值。</span><br><span class="hljs-comment"></span><br><span class="hljs-comment">    */</span><br><br>    <span class="hljs-type">int</span> ans = <span class="hljs-number">-999</span>;<br>    <span class="hljs-function"><span class="hljs-type">int</span> <span class="hljs-title">recursion</span><span class="hljs-params">(TreeNode* root)</span> </span>&#123;<br>        <span class="hljs-keyword">if</span> (!root) <span class="hljs-keyword">return</span> <span class="hljs-number">-999</span>;<br>        <span class="hljs-keyword">if</span> (!root-&gt;left &amp;&amp; !root-&gt;right)&#123;<br>            <span class="hljs-keyword">if</span> (root-&gt;val &gt; ans) ans = root-&gt;val;<br>            <span class="hljs-keyword">return</span> root-&gt;val;<br>        &#125; <br><br>        <span class="hljs-keyword">auto</span> leftRet = <span class="hljs-built_in">recursion</span>(root-&gt;left);<br>        <span class="hljs-keyword">auto</span> rightRet = <span class="hljs-built_in">recursion</span>(root-&gt;right);<br><br>        <span class="hljs-comment">// 情况1</span><br>        ans = <span class="hljs-built_in">max</span>(ans, leftRet);<br>        <span class="hljs-comment">// 情况2</span><br>        ans = <span class="hljs-built_in">max</span>(ans, rightRet);<br>        <span class="hljs-comment">// 情况5</span><br>        ans = <span class="hljs-built_in">max</span>(ans, rightRet + root-&gt;val + leftRet);<br><br>        <span class="hljs-comment">//返回情况3、4、6中最大的</span><br>        <span class="hljs-keyword">return</span> <span class="hljs-built_in">max</span>(<span class="hljs-built_in">max</span>(rightRet, leftRet) + root-&gt;val, root-&gt;val);<br><br>    &#125;<br></code></pre></td></tr></table></figure>
+
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/%E7%AE%97%E6%B3%95/">#算法</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>算法刷题杂记</div>
+      <div>http://example.com/2022/07/07/算法刷题杂记/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年7月7日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/07/15/%E6%9F%A5%E8%AF%A2%E5%A4%84%E7%90%86%E7%AF%87%EF%BC%9ASelection%20%E6%93%8D%E4%BD%9C/" title="查询处理篇：Selection 操作">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">查询处理篇：Selection 操作</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/07/04/%E7%B4%A2%E5%BC%95%E7%AF%87%E9%9B%B6%EF%BC%9A%E7%B4%A2%E5%BC%95%E6%80%BB%E8%AE%BA/" title="索引篇零：索引总论">
+                        <span class="hidden-mobile">索引篇零：索引总论</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

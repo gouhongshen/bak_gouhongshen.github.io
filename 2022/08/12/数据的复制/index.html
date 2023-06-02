@@ -1,0 +1,823 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="所谓的复制其实就算数据在多个节点上的冗余存储，这些节点一般通过网络连接（内部网络-单个数据中心内；公共网络-跨数据中心）。一般来说，数据冗余存储有如下优点：  增强数据的可用性和安全性。如果某个节点发生故障，依然能向外提供数据服务。 减少请求响应时间。不同的请求路由到邻近的副本处理。 增加吞吐量。请求可以分配到不同的副本处理，减轻单个节点的负载。     数据复制的单位通常是数据分片，如 tabl">
+<meta property="og:type" content="article">
+<meta property="og:title" content="数据的复制">
+<meta property="og:url" content="http://example.com/2022/08/12/%E6%95%B0%E6%8D%AE%E7%9A%84%E5%A4%8D%E5%88%B6/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="所谓的复制其实就算数据在多个节点上的冗余存储，这些节点一般通过网络连接（内部网络-单个数据中心内；公共网络-跨数据中心）。一般来说，数据冗余存储有如下优点：  增强数据的可用性和安全性。如果某个节点发生故障，依然能向外提供数据服务。 减少请求响应时间。不同的请求路由到邻近的副本处理。 增加吞吐量。请求可以分配到不同的副本处理，减轻单个节点的负载。     数据复制的单位通常是数据分片，如 tabl">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/data_replication/2.png">
+<meta property="og:image" content="http://example.com/img/data_replication/1.png">
+<meta property="article:published_time" content="2022-08-12T08:00:19.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.327Z">
+<meta property="article:author" content="gouhongshen">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/data_replication/2.png">
+  
+  
+  
+  <title>数据的复制 - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="数据的复制"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-08-12 16:00" pubdate>
+          2022年8月12日 下午
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          4.1k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          46 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">数据的复制</h1>
+            
+            <div class="markdown-body">
+              
+              <p>所谓的复制其实就算数据在多个节点上的冗余存储，这些节点一般通过网络连接（内部网络-单个数据中心内；公共网络-跨数据中心）。一般来说，数据冗余存储有如下优点：</p>
+<ul>
+<li>增强数据的可用性和安全性。如果某个节点发生故障，依然能向外提供数据服务。</li>
+<li>减少请求响应时间。不同的请求路由到邻近的副本处理。</li>
+<li>增加吞吐量。请求可以分配到不同的副本处理，减轻单个节点的负载。</li>
+</ul>
+<br>
+
+<blockquote>
+<p>数据复制的单位通常是数据分片，如 tablet、node、virtual node 等。</p>
+</blockquote>
+<br>
+
+<p>下面介绍三种常用的复制类型：单主复制（single-master）、多主复制（multi-master）和无主复制（leaderless）。</p>
+<h2 id="单主复制"><a href="#单主复制" class="headerlink" title="单主复制"></a>单主复制</h2><p>单主复制又叫主从复制，在所有副本中选择一个作为主节点，其余的副本称为从节点或从库。客户端的<strong>写请求必须发送到主节点</strong>（若从节点收到写请求，可以路由给主节点），从节点可以处理读请求，从客户端的角度来看从节点都是只读的。这样的配置称之为单活。</p>
+<p>主节点接收客户端的写请求后，除了将数据写入本地存储外，还需要将新数据复制到从节点以保证副本一致性。复制方式可以分三类：</p>
+<ul>
+<li><strong>同步复制（synchronous replication）</strong>。该模式下，主节点执行完一个写请求（或一个事务）后，必须等待所有同步从节点都复制了更新后，才可以回复客户端写入成功。同步复制的<u>优点是</u>，从节点保证有与主节点一致的最新数据副本。如果主节点突然失效，这些数据仍然能在从节点上上找到。<u>缺点是</u>，如果同步从节点没有响应（比如它已经崩溃，或者出现网络故障，或其它任何原因），主节点就无法处理写入操作。主节点必须阻止所有写入，并等待同步副本再次可用。</li>
+<li><strong>异步复制（asynchronous replication）</strong>。在模式下，主节点执行完写请求后，会将新数据复制给从节点，但无需等待其他副本写入成功就返回客户端。很明显，异步复制的<u>优点是</u>，主节点不需要等待从节点，所以写请求响应快。<u>但是</u>，异步复制会潜在地影响副本数据的一致性和持久性。例如，如果客户端收到写请求完成响应后立即查询刚刚写入的数据则有可能读到旧值（或不存在），这可以通过实现读己之写一致性避免。再如，如果主节点还未复制新数据到从节点时就发生不可恢复故障，那么数据就有可能永久丢失。</li>
+<li><strong>半同步复制（semisynchronous replication）</strong>。在该模式下，主节点只需要等待至少一个从节点复制更新后才返回，不需要等待所有从节点。</li>
+</ul>
+<br>
+
+<blockquote>
+<p>将所有从节点都设置为同步的是不切实际的：任何一个节点的中断都会导致整个系统停滞不前。实际上，如果在数据库上启用同步复制，通常意味着其中一个跟随者是同步的，而其他的则是异步的，也就是半同步。如果同步从节点变得不可用或缓慢，则可以将某一个异步从节点提升为同步从节点，可以保证至少在两个节点上拥有最新的数据副本。</p>
+</blockquote>
+<blockquote>
+<p>异步复制能提供比较好的性能，但存在数据丢失的风险，所以学界工业界一直在寻找不丢数据但仍能提供良好性能和可用性的复制方法，比较成功的有<a target="_blank" rel="noopener" href="https://pdos.csail.mit.edu/6.824/papers/cr-osdi04.pdf">链式复制</a>和<a href="/2022/06/14/raft-%E6%9D%82%E8%AE%B0/" title="共识协议">共识协议</a>。</p>
+</blockquote>
+<blockquote>
+<p>引入数据多副本后，客户端的请求会涉及到一致性问题，具体可以参见文章：<a href="/2022/08/02/%E5%88%86%E5%B8%83%E5%BC%8F%E4%B8%80%E8%87%B4%E6%80%A7%E6%A8%A1%E5%9E%8B/" title="分布式一致性模型">分布式一致性模型</a>。另外，主节点采用什么方式将数据复制给从节点呢？这个还是得以一个具体得数据库为例弄清楚比较好，参见文章：<a href="/2022/08/18/MySQL%20%E7%9A%84%E5%A4%8D%E5%88%B6/" title="MySQL 的复制">MySQL 的复制</a>。</p>
+</blockquote>
+<p>总的来说，<strong>单主复制的主要优点有</strong>：① 简单易懂、易于实现；② 仅在主节点执行（并发）写请求，能够保证操作的顺序性，避免了副本数据冲突的麻烦，当然了单主场景也会发生冲突，比如切换主节点后原主节点的数据与当前主节点冲突，解决方法当然是以当前主节点数据为准。这个特性使得单主复制更容易支持事务类操作，因为简单，性能高；③ 对于大量读请求工作负载的系统，单主复制是可拓展的，通过增加从节点就能提高读事务吞吐量。</p>
+<p><strong>缺点也很明显</strong>：① 面对大量写请求工作负载时系统很难进行拓展，因为写请求的瓶颈在主节点；② 主节点宕机时，从节点切换是一个难题。节点切换可以有手动切换和自动切换两种。对于手动切换能保证新主节点具有完整的数据，但耗时长；对于主动切换则可能发生脑裂，比如在网络分区中，多个从节点检测到主节点失效同时成为新的主节点，当然了共识协议可以解决这个问题。</p>
+<h2 id="多主复制"><a href="#多主复制" class="headerlink" title="多主复制"></a>多主复制</h2><p>所谓多主复制就是指在副本中存在多个主节点，复制仍然以同样的方式发生：处理写入的每个主节点都必须将该数据更改转发给所有其他节点。 称之为多领导者配置（也称多主、多活复制）。在这种情况下，每个主节点同时扮演其他主节点的从节点。</p>
+<blockquote>
+<p>这里需要注意，数据分片后，每个分片都会有一个主节点，这种场景应该不是多主复制，因为这些主节点负责的数据没有交集，不存在冲突一说。</p>
+</blockquote>
+<p><img src="/img/data_replication/2.png" srcset="/img/loading.gif" lazyload></p>
+<p>因为好处很少超过复杂性的代价，在单个数据中心内部基本不使用多主配置，在一些情况下，多活配置也是合理的：<strong>① 多数据中心</strong>。假如有一个数据库，副本分散在好几个不同的数据中心（也许这样可以容忍单个数据中心的故障，或地理上更接近用户）。 使用常规的基于领导者的复制设置，主节点必须位于其中一个数据中心，且所有写入都必须经过该数据中心。多领导者配置中可以在每个数据中心都有主节点。</p>
+<blockquote>
+<p>如果是单活配置，每个写入都必须穿过互联网，延迟会很高，违背了多数据中心的一部分初衷（就近原则）；若是多活配置，各写入可以路由到最近的数据中心，各数据中心采用异步复制，提升写性能。</p>
+</blockquote>
+<blockquote>
+<p>如果是单活配置，若数据中心故障，跨数据中心的主节点选举耗时更长；若是多活配置，各数据中心独立运行，不受影响。</p>
+</blockquote>
+<blockquote>
+<p>如果是单活配置，同步复制可能会跨数据中心，走公共网络，远不如内部的网络可靠；若是多活配置，异步复制更能容忍网络故障。</p>
+</blockquote>
+<p><strong>② 离线操作的客户端</strong>。应用程序在断网之后仍然需要继续工作，在这种情况下，每个设备都有一个充当领导者的本地数据库（它接受写请求），并且在所有设备上的副本之间同步时，存在异步的多主复制过程。从架构的角度来看，这种设置实际上与数据中心之间的多领导者复制类似，每个设备都是一个“数据中心”，而它们之间的网络连接是极度不可靠的。<strong>③ 协同编辑</strong>。当一个用户编辑文档时，所做的更改将立即应用到其本地副本（Web 浏览器或客户端应用程序中的文档状态），并异步复制到服务器和编辑同一文档的任何其他用户。</p>
+<p><img src="/img/data_replication/1.png" srcset="/img/loading.gif" lazyload><br>一般来说，通过 IP 属地、地理位置等可以将特定用户&#x2F;客户端的请求路由到同一个主节点（数据中心），能在一定程度上避免数据冲突，但有些情况依然有可能会发生冲突，比如负载均衡、多用户操作同一数据等，如上图。一些常见的数据冲突解决方法有：</p>
+<ul>
+<li><strong>由客户端解决</strong>。具体方案是，当（主节点间）异步复制发现数据冲突时将所有冲突的数据都保留下来（多个版本）。客户端下次读取发生冲突的数据时，将所有数据版本都返回给客户端，由客户端选择合适的数据再返回给主节点覆盖冲突的数据。购物车就是一个典型的例子。购物车应用解决冲突的逻辑是保留购物车中所有冲突的商品，并返回给用户，当用户看到重复的或已经被删除的物品，就会主动纠正，纠正后的内容被重新提交，就解决了该冲突。</li>
+<li><strong>最后写入胜利</strong>。给每个写入一个唯一的 ID（例如，一个时间戳，一个长的随机数，一个 UUID 或者一个键值的哈希），挑选最高 ID 的写入作为胜利者，并丢弃其他写入。如果使用时间戳，这种技术被称为最后写入胜利（LWW, last write wins）。虽然这种方法很流行，但是很容易造成数据丢失。</li>
+<li><strong>特殊的数据类型</strong>。如无冲突复制数据类型（conflict-free replicated datatypes，CRDT）是可以由多个用户同时编辑的集合，映射，有序列表，计数器等的一系列数据结构，它们以合理的方式自动解决冲突。</li>
+</ul>
+<p>总结一下，多或配置的主要优点有：① 增加主节点的容错性，一个主节点挂了不会影响其他主节点继续服务；② 可以在多个节点上执行写请求，分担写负载的压力；③ 写请求可以路由到邻近的主节点以减少响应时间。主要缺点就是它太复杂了，容易产生数据冲突。</p>
+<h2 id="无主复制"><a href="#无主复制" class="headerlink" title="无主复制"></a>无主复制</h2><p>单主复制、多主复制都是这样的想法：客户端向一个主节点发送写请求，而数据库系统负责将写入复制到其他副本。主节点决定写入的顺序，而从节点按相同顺序应用主节点的写入。一些数据存储系统采用不同的方法，放弃主节点的概念，并允许任何副本直接接受来自客户端的写入。</p>
+<p><strong>无主复制的主要思想是</strong>，客户端不仅向一个节点发送写请求，而是将请求发送到多个节点（某些情况下甚至会发送给所有节点），一旦得到一些节点的确认信息就认为这次写入成功了。读取数据时，客户端也不止会从一个节点读取数据，而是将读请求发送给多个节点，获取数据和数据的版本号。</p>
+<blockquote>
+<p>这里有两种方式，第一种是客户端直接向多个副本发送请求；第二种是引入一个协调节点，客户端将请求发送给协调节点，再由协调节点充当客户端的角色发送请求和接收回复，最后返回给真正的客户端。</p>
+</blockquote>
+<p>由于执行写请求时一般不会等待所有副本的成功写入回复，那么就可能会存在部分节点未写入成功或者根本没有发送写请求给它，这样一来客户端收到的多个读请求回复里面就可能包含过期的数据，所以需要一种方法能让返回的多个数据中一定存在最新的（也就是版本号最大的）。<strong>这种方法就是 Quorum 机制（法定人数机制）</strong>：</p>
+<blockquote>
+<p>假设总共有 $N$ 个副本，执行写请求时，当客户端（或协调节点）至少收到 $W$ 个副本成功写入回复后才认为此次写入是成功的；执行读请求时，需要至少从 $R$ 个节点上读取数据，那么只要 $W + R &gt; N$，就能保证读请求返回的数据中一定包含先前写入的最新数据。</p>
+</blockquote>
+<p>尽管上述机制能让客户端鉴别出最新的数据，系统依然需要修复这些不一致，在亚马逊 Dynamo 架构中有两种修复方法：</p>
+<ul>
+<li><strong>读修复（read repair）</strong>。既然客户端能够鉴别出旧的数据，那么就可以由客户端在收到读请求回复后向拥有旧数据的副本发起一个带有新数据的写请求，以此来更新副本的数据。</li>
+<li><strong>反熵过程（anti-entropy process）</strong>。反熵过程会新建一个后台进程来修复数据，该进程不断查找副本之间的数据差异，并将任何缺少或陈旧的数据从一个副本复制到另一个副本。反熵过程只保证各个副本的数据最终一致，不保证写入的顺序性。Dynamo 使用了<a href="/2022/07/17/CAP%20&%20BASE/" title="梅克尔树（merkle tree）">梅克尔树（merkle tree）</a>来验证数据是否有不一致。</li>
+</ul>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>数据的复制</div>
+      <div>http://example.com/2022/08/12/数据的复制/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年8月12日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/08/18/MySQL%20%E7%9A%84%E5%A4%8D%E5%88%B6/" title="MySQL 的复制">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">MySQL 的复制</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/08/08/Lock%20Manager/" title="Lock Manager">
+                        <span class="hidden-mobile">Lock Manager</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>

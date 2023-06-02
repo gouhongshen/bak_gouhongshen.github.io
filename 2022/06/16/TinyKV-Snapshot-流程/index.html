@@ -1,0 +1,836 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-color-scheme=auto>
+
+
+
+<head>
+  <meta charset="UTF-8">
+  <link rel="apple-touch-icon" sizes="76x76" href="/img/fluid.png">
+  <link rel="icon" href="/img/custom/browser_tag.png">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, shrink-to-fit=no">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  
+  <meta name="theme-color" content="#2f4154">
+  <meta name="author" content="gouhongshen">
+  <meta name="keywords" content="">
+  
+    <meta name="description" content="前言在写 TinyKV 时，有一个部分很难理解，那就 Snapshot 的收发过程。为了防止内存中的日志条目无限扩张，Raft 会定时&#x2F;定量清理日志（如已经提交了的日志），一些节点可能由于是新加入或者网络等原因，其想要复制的日志已经被 leader 清理出内存了，此时，leader 会给该节点发送一份 Snapshot 使其快速跟上。在实现代码时，Raft 只是使用 Snapshot 的">
+<meta property="og:type" content="article">
+<meta property="og:title" content="TinyKV Snapshot 流程探秘">
+<meta property="og:url" content="http://example.com/2022/06/16/TinyKV-Snapshot-%E6%B5%81%E7%A8%8B/index.html">
+<meta property="og:site_name" content="Gou&#39;s Blog">
+<meta property="og:description" content="前言在写 TinyKV 时，有一个部分很难理解，那就 Snapshot 的收发过程。为了防止内存中的日志条目无限扩张，Raft 会定时&#x2F;定量清理日志（如已经提交了的日志），一些节点可能由于是新加入或者网络等原因，其想要复制的日志已经被 leader 清理出内存了，此时，leader 会给该节点发送一份 Snapshot 使其快速跟上。在实现代码时，Raft 只是使用 Snapshot 的">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="http://example.com/img/tinykv_snapshot/tinykv_arch.png">
+<meta property="og:image" content="http://example.com/img/tinykv_snapshot/fig_for_create.png">
+<meta property="og:image" content="http://example.com/img/tinykv_snapshot/fig_for_send.png">
+<meta property="og:image" content="http://example.com/img/tinykv_snapshot/fig_for_recv.png">
+<meta property="og:image" content="http://example.com/img/tinykv_snapshot/fig_for_apply.png">
+<meta property="article:published_time" content="2022-06-16T10:56:01.000Z">
+<meta property="article:modified_time" content="2023-06-02T05:55:38.307Z">
+<meta property="article:author" content="gouhongshen">
+<meta property="article:tag" content="TinyKV">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="http://example.com/img/tinykv_snapshot/tinykv_arch.png">
+  
+  
+  
+  <title>TinyKV Snapshot 流程探秘 - Gou&#39;s Blog</title>
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/twitter-bootstrap/4.6.1/css/bootstrap.min.css" />
+
+
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/github-markdown-css/4.0.0/github-markdown.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/hint.css/2.7.0/hint.min.css" />
+
+  <link  rel="stylesheet" href="https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.css" />
+
+
+
+<!-- 主题依赖的图标库，不要自行修改 -->
+<!-- Do not modify the link that theme dependent icons -->
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1749284_hj8rtnfg7um.css">
+
+
+
+<link rel="stylesheet" href="//at.alicdn.com/t/font_1736178_lbnruvf0jn.css">
+
+
+<link  rel="stylesheet" href="/css/main.css" />
+
+
+  <link id="highlight-css" rel="stylesheet" href="/css/highlight.css" />
+  
+    <link id="highlight-css-dark" rel="stylesheet" href="/css/highlight-dark.css" />
+  
+
+
+
+  
+<link rel="stylesheet" href="/css/custom.css">
+
+
+
+  <script id="fluid-configs">
+    var Fluid = window.Fluid || {};
+    Fluid.ctx = Object.assign({}, Fluid.ctx)
+    var CONFIG = {"hostname":"example.com","root":"/","version":"1.9.1","typing":{"enable":true,"typeSpeed":70,"cursorChar":"_","loop":false,"scope":[]},"anchorjs":{"enable":true,"element":"h1,h2,h3,h4,h5,h6","placement":"left","visible":"hover","icon":""},"progressbar":{"enable":true,"height_px":3,"color":"#29d","options":{"showSpinner":false,"trickleSpeed":100}},"code_language":{"enable":true,"default":"TEXT"},"copy_btn":true,"image_caption":{"enable":true},"image_zoom":{"enable":true,"img_url_replace":["",""]},"toc":{"enable":true,"placement":"right","headingSelector":"h1,h2,h3,h4,h5,h6","collapseDepth":0},"lazyload":{"enable":true,"loading_img":"/img/loading.gif","onlypost":false,"offset_factor":2},"web_analytics":{"enable":true,"follow_dnt":true,"baidu":null,"google":null,"gtag":null,"tencent":{"sid":null,"cid":null},"woyaola":null,"cnzz":null,"leancloud":{"app_id":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","app_key":"zzkSgrAk6AEncP4gqAbFFQRR","server_url":null,"path":"window.location.pathname","ignore_local":true}},"search_path":"/local-search.xml"};
+
+    if (CONFIG.web_analytics.follow_dnt) {
+      var dntVal = navigator.doNotTrack || window.doNotTrack || navigator.msDoNotTrack;
+      Fluid.ctx.dnt = dntVal && (dntVal.startsWith('1') || dntVal.startsWith('yes') || dntVal.startsWith('on'));
+    }
+  </script>
+  <script  src="/js/utils.js" ></script>
+  <script  src="/js/color-schema.js" ></script>
+
+  
+<meta name="generator" content="Hexo 6.2.0"></head>
+
+
+<body>
+  
+
+  <header>
+    
+
+<div class="header-inner" style="height: 70vh;">
+  <nav id="navbar" class="navbar fixed-top  navbar-expand-lg navbar-dark scrolling-navbar">
+  <div class="container">
+    <a class="navbar-brand" href="/">
+      <strong>GouHongShen</strong>
+    </a>
+
+    <button id="navbar-toggler-btn" class="navbar-toggler" type="button" data-toggle="collapse"
+            data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+      <div class="animated-icon"><span></span><span></span><span></span></div>
+    </button>
+
+    <!-- Collapsible content -->
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+      <ul class="navbar-nav ml-auto text-center">
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/">
+                <i class="iconfont icon-home-fill"></i>
+                首页
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/archives/">
+                <i class="iconfont icon-archive-fill"></i>
+                归档
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/categories/">
+                <i class="iconfont icon-category-fill"></i>
+                分类
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/tags/">
+                <i class="iconfont icon-tags-fill"></i>
+                标签
+              </a>
+            </li>
+          
+        
+          
+          
+          
+          
+            <li class="nav-item">
+              <a class="nav-link" href="/about/">
+                <i class="iconfont icon-user-fill"></i>
+                关于
+              </a>
+            </li>
+          
+        
+        
+          <li class="nav-item" id="search-btn">
+            <a class="nav-link" target="_self" href="javascript:;" data-toggle="modal" data-target="#modalSearch" aria-label="Search">
+              &nbsp;<i class="iconfont icon-search"></i>&nbsp;
+            </a>
+          </li>
+          
+        
+        
+          <li class="nav-item" id="color-toggle-btn">
+            <a class="nav-link" target="_self" href="javascript:;" aria-label="Color Toggle">&nbsp;<i
+                class="iconfont icon-dark" id="color-toggle-icon"></i>&nbsp;</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+</nav>
+
+  
+
+<div id="banner" class="banner" parallax=true
+     style="background: url('/img/default.png') no-repeat center center; background-size: cover;">
+  <div class="full-bg-img">
+    <div class="mask flex-center" style="background-color: rgba(0, 0, 0, 0.3)">
+      <div class="banner-text text-center fade-in-up">
+        <div class="h2">
+          
+            <span id="subtitle" data-typed-text="TinyKV Snapshot 流程探秘"></span>
+          
+        </div>
+
+        
+          
+  <div class="mt-3">
+    
+    
+      <span class="post-meta">
+        <i class="iconfont icon-date-fill" aria-hidden="true"></i>
+        <time datetime="2022-06-16 18:56" pubdate>
+          2022年6月16日 晚上
+        </time>
+      </span>
+    
+  </div>
+
+  <div class="mt-1">
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-chart"></i>
+        
+          8.4k 字
+        
+      </span>
+    
+
+    
+      <span class="post-meta mr-2">
+        <i class="iconfont icon-clock-fill"></i>
+        
+        
+        
+          94 分钟
+        
+      </span>
+    
+
+    
+    
+      
+        <span id="leancloud-page-views-container" class="post-meta" style="display: none">
+          <i class="iconfont icon-eye" aria-hidden="true"></i>
+          <span id="leancloud-page-views"></span> 次
+        </span>
+        
+      
+    
+  </div>
+
+
+        
+      </div>
+
+      
+    </div>
+  </div>
+</div>
+
+</div>
+
+  </header>
+
+  <main>
+    
+      
+
+<div class="container-fluid nopadding-x">
+  <div class="row nomargin-x">
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+
+    </div>
+
+    <div class="col-lg-8 nopadding-x-md">
+      <div class="container nopadding-x-md" id="board-ctn">
+        <div id="board">
+          <article class="post-content mx-auto">
+            <!-- SEO header -->
+            <h1 style="display: none">TinyKV Snapshot 流程探秘</h1>
+            
+            <div class="markdown-body">
+              
+              <h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>在写 TinyKV 时，有一个部分很难理解，那就 Snapshot 的收发过程。<br>为了防止内存中的日志条目无限扩张，Raft 会定时&#x2F;定量清理日志（如已经提交了的日志），一些节点可能由于是新加入或者网络等原因，其想要复制的日志已经被 leader 清理出内存了，此时，leader 会给该节点发送一份 Snapshot 使其快速跟上。在实现代码时，Raft 只是使用 Snapshot 的元数据来更新了一些状态，并没有涉及的日志的追加等操作，深感疑惑。而且，Snapshot 一般很大，虽然可以作为普通消息处理，但可能会阻塞正常的流程，所以对它的收发过程也很感兴趣。为了搞清楚这些问题，追踪代码调用，总算是搞清楚了。下面分为 Snapshot 的发送、接收、处理几个方面解密。</p>
+<h2 id="Snapshot-流程总览"><a href="#Snapshot-流程总览" class="headerlink" title="Snapshot 流程总览"></a>Snapshot 流程总览</h2><p>这里先给出 snapshot 各个部分的流程示意图，下面会对各个部分详细分析<br><img src="/img/tinykv_snapshot/tinykv_arch.png" srcset="/img/loading.gif" lazyload alt="TinyKV 的整体架构（代码层面）"><br><img src="/img/tinykv_snapshot/fig_for_create.png" srcset="/img/loading.gif" lazyload alt="snapshot 创建流程"><br><img src="/img/tinykv_snapshot/fig_for_send.png" srcset="/img/loading.gif" lazyload alt="snapshot 发送流程"><br><img src="/img/tinykv_snapshot/fig_for_recv.png" srcset="/img/loading.gif" lazyload alt="snapshot 接收流程"><br><img src="/img/tinykv_snapshot/fig_for_apply.png" srcset="/img/loading.gif" lazyload alt="snapshot 应用流程"></p>
+<h2 id="Part-1：Snapshot-的创建"><a href="#Part-1：Snapshot-的创建" class="headerlink" title="Part 1：Snapshot 的创建"></a>Part 1：Snapshot 的创建</h2><figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(r *Raft)</span></span> sendAppend(to <span class="hljs-type">uint64</span>) &#123;<br>    term, err := r.RaftLog.Term(r.Prs[to].Next - <span class="hljs-number">1</span>)<br>    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;<br>        <span class="hljs-comment">// the peer left too far behind  (or newly join), </span><br>        <span class="hljs-comment">// send it a snapshot to catch-up</span><br>        r.trySendSnapshot(to)<br>        <span class="hljs-keyword">return</span><br>    &#125;<br>    <span class="hljs-comment">// something else</span><br>&#125;<br><br><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(r *Raft)</span></span> trySendSnapshot(to <span class="hljs-type">uint64</span>) &#123;<br>    snapshot, err := r.RaftLog.storage.snapshot()<br>    <span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;<br>        <span class="hljs-keyword">return</span><br>    &#125;<br><br>    r.msgs = <span class="hljs-built_in">append</span>(r.msgs, SnapshotMessage&#123;...&#125;)<br><br>&#125;<br></code></pre></td></tr></table></figure>
+<p>第一个函数表明了 Raft 发送 Snapshot 的时机，第二个函数表明了 Snapshot 来自 storage。</p>
+<blockquote>
+<p>这个 storage 在 2A部分和之后的部分是不一样的，值得分析下。在 2A 中，storage 接口由 MemoryStorage 实现，这货存在于内存中，文档中写着，放入 storage 的日志是持久化的（stabled），当时很不理解，因为它也是存在内存中的啊，做到后面才发现，这里的 MemoryStorage 主要起着测试的作用，你只需要闭只眼假装它真的持久化了就行。而在后面的部分，storage 接口由 badger.DB（engines.Raft）实现，是实打实的写入磁盘。</p>
+</blockquote>
+<p>那么，调用 storage.snapshot() 实际做了什么？</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(ps *PeerStorage)</span></span> Snapshot() (eraftpb.Snapshot, <span class="hljs-type">error</span>) &#123;<br>    <span class="hljs-keyword">var</span> snapshot eraftpb.Snapshot<br>    <span class="hljs-keyword">if</span> snapshot_is_generating &#123;<br>        snapshot &lt;- ps.snapState.Receiver<br>        <span class="hljs-keyword">return</span> snapshot, <span class="hljs-literal">nil</span><br>    &#125;<br><br>    <span class="hljs-comment">// something else</span><br><br>    ch := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> *eraftpb.Snapshot, <span class="hljs-number">1</span>)<br>	ps.snapState = snap.SnapState&#123;<br>		StateType: snap.SnapState_Generating,<br>		Receiver:  ch,<br>	&#125;<br>	<span class="hljs-comment">// schedule snapshot generate task</span><br>	ps.regionSched &lt;- &amp;runner.RegionTaskGen&#123;<br>		RegionId: ps.region.GetId(),<br>		Notifier: ch,<br>	&#125;<br><br>    <span class="hljs-keyword">return</span> snapshot, raft.ErrSnapshotTemporarilyUnavailable<br>&#125;<br><br></code></pre></td></tr></table></figure>
+<p>代码很清楚，如果当前正在生成 snapshot，那么就等待它生成完成并返回，否则，就创建一个 RegionTaskGen 任务发送给 regionSched 通道，并返回暂时不可用错误。那么是谁在接收该任务呢？</p>
+<p>上面说到 Raft 调用生成 snapshot 的接口，该接口的实现（PeerStorage）会创建一个 RegionTaskGen 任务发送给 regionSched 通道。该通道的消费者实际上是 regionWorker：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(w *Worker)</span></span> Start(handler TaskHandler) &#123;<br>	<span class="hljs-keyword">go</span> <span class="hljs-function"><span class="hljs-keyword">func</span><span class="hljs-params">()</span></span> &#123;<br>		<span class="hljs-keyword">for</span> &#123;<br>			Task := &lt;-w.receiver<br>			<span class="hljs-keyword">if</span> _, ok := Task.(TaskStop); ok &#123;<br>				<span class="hljs-keyword">return</span><br>			&#125;<br>			handler.Handle(Task)<br>		&#125;<br>	&#125;()<br>&#125;<br><br><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(r *regionTaskHandler)</span></span> Handle(t worker.Task) &#123;<br>	<span class="hljs-keyword">switch</span> t.(<span class="hljs-keyword">type</span>) &#123;<br>	<span class="hljs-keyword">case</span> *RegionTaskGen:<br>		task := t.(*RegionTaskGen)<br>		<span class="hljs-comment">// It is safe for now to handle generating and applying snapshot concurrently,</span><br>		<span class="hljs-comment">// but it may not when merge is implemented.</span><br>		r.ctx.handleGen(task.RegionId, task.Notifier)<br>	<span class="hljs-keyword">case</span> *RegionTaskApply:<br>		task := t.(*RegionTaskApply)<br>        <span class="hljs-comment">// apply received snapshot</span><br>		r.ctx.handleApply(task.RegionId, task.Notifier, task.StartKey, task.EndKey, task.SnapMeta)<br>	<span class="hljs-keyword">case</span> *RegionTaskDestroy:<br>		task := t.(*RegionTaskDestroy)<br>		r.ctx.cleanUpRange(task.RegionId, task.StartKey, task.EndKey)<br>	&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>regionWorker 创建一个协程，处理接收到的各种任务。其中有两种任务是本文需要关注的：<br>1）RegionTaskGen（生成 snapshot）<br>2）RegionTaskApply（应用从其他 peer 接收来的 snapshot）</p>
+<p>继续看 RegionTaskGen 任务是如何执行的：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(snapCtx *snapContext)</span></span> handleGen(...) &#123;<br>	snap, err := doSnapshot(...)<br>	<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;<br>		notifier &lt;- <span class="hljs-literal">nil</span><br>	&#125; <span class="hljs-keyword">else</span> &#123;<br>        <span class="hljs-comment">// notify task done to task creator</span><br>		notifier &lt;- snap<br>	&#125;<br>&#125;<br><br><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-title">doSnapshot</span><span class="hljs-params">(...)</span></span> (*eraftpb.Snapshot, <span class="hljs-type">error</span>) &#123;<br>	log.Debugf(<span class="hljs-string">&quot;begin to generate a snapshot. [regionId: %d]&quot;</span>, regionId)<br>    <span class="hljs-comment">// kvDB !!!</span><br>	txn := engines.Kv.NewTransaction(<span class="hljs-literal">false</span>)<br>    <span class="hljs-comment">//...</span><br>	err = s.Build(txn, ...)<br>    <span class="hljs-comment">//...</span><br>	<span class="hljs-keyword">return</span> snapshot, err<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>该 Build() 函数最终会调用 snapBuilder.build()，函数会扫描 PeerStorage.kvDB 的数据，创建一份快照：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(b *snapBuilder)</span></span> build() <span class="hljs-type">error</span> &#123;<br>	<span class="hljs-keyword">defer</span> b.txn.Discard()<br>	startKey, endKey := b.region.StartKey, b.region.EndKey<br><br>    <span class="hljs-comment">// all data will store in b.cfFiles</span><br>	<span class="hljs-keyword">for</span> _, file := <span class="hljs-keyword">range</span> b.cfFiles &#123;<br>		cf := file.CF<br>		sstWriter := file.SstWriter<br><br>		it := engine_util.NewCFIterator(cf, b.txn)<br>		<span class="hljs-keyword">for</span> it.Seek(startKey); it.Valid(); it.Next() &#123;<br>			item := it.Item()<br>			key := item.Key()<br>			<br>			value, err := item.Value()<br>			<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;<br>				<span class="hljs-keyword">return</span> err<br>			&#125;<br><br>			cfKey := engine_util.KeyWithCF(cf, key)<br>            <span class="hljs-comment">// store data</span><br>			<span class="hljs-keyword">if</span> err := sstWriter.Add(cfKey, y.ValueStruct&#123;<br>				Value: value,<br>			&#125;); err != <span class="hljs-literal">nil</span> &#123;<br>				<span class="hljs-keyword">return</span> err<br>			&#125;<br>		&#125;<br>		it.Close()<br>	&#125;<br>	<span class="hljs-keyword">return</span> <span class="hljs-literal">nil</span><br>&#125;<br></code></pre></td></tr></table></figure>
+<p>自此，Snapshot 的创建过程分析完成</p>
+<h2 id="Part-2：Snapshot-的发送"><a href="#Part-2：Snapshot-的发送" class="headerlink" title="Part 2：Snapshot 的发送"></a>Part 2：Snapshot 的发送</h2><p>当 sendAppend() 函数获取到创建的 snapshot 后，会将其封装在 pb.MessageType_MsgSnapshot 消息中，等待 RaftStorage 层调用 rawNode.Ready()：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(d *peerMsgHandler)</span></span> HandleRaftReady() &#123;<br>	<span class="hljs-comment">// Your Code Here (2B).</span><br>	rd := d.RaftGroup.Ready()<br>	d.sendMessageToPeers(rd.Messages)<br>    <span class="hljs-comment">// ...</span><br>	d.RaftGroup.Advance(rd)<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>sendMessageToPeers() 最终会调用 WirteData() 函数：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(t *ServerTransport)</span></span> WriteData(...) &#123;<br>	<span class="hljs-keyword">if</span> msg.GetMessage().GetSnapshot() != <span class="hljs-literal">nil</span> &#123;<br>		t.SendSnapshotSock(addr, msg)<br>		<span class="hljs-keyword">return</span><br>	&#125;<br>	<span class="hljs-keyword">if</span> err := t.raftClient.Send(storeID, addr, msg); err != <span class="hljs-literal">nil</span> &#123;<br>		log.Errorf(<span class="hljs-string">&quot;send raft msg err. err: %v&quot;</span>, err)<br>	&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>可以看到，在 WriteData 中对 snapshot 消息做了一个拦截，采用另外的方式单独处理：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(t *ServerTransport)</span></span> SendSnapshotSock(...) &#123;<br>	t.snapScheduler &lt;- &amp;sendSnapTask&#123;<br>		addr:     addr,<br>		msg:      msg,<br>	&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>这下明白了，由于 snapshot 比较大，会采用分块传输，对它的发送操作与普通的消息分开，由 sendSnapTask 异步完成。<br>继续探寻该任务是如何被执行的，该任务被 snapWorker 接收，并调用 Handle() 处理：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(r *snapRunner)</span></span> Handle(t worker.Task) &#123;<br>	<span class="hljs-keyword">switch</span> t.(<span class="hljs-keyword">type</span>) &#123;<br>	<span class="hljs-keyword">case</span> *sendSnapTask:<br>		r.send(t.(*sendSnapTask))<br>	<span class="hljs-keyword">case</span> *recvSnapTask:<br>		r.recv(t.(*recvSnapTask))<br>	&#125;<br>&#125;<br><br><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(r *snapRunner)</span></span> send(t *sendSnapTask) &#123;<br>	t.callback(r.sendSnap(t.addr, t.msg))<br>&#125;<br><br><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(r *snapRunner)</span></span> sendSnap(...) <span class="hljs-type">error</span> &#123;<br>    <span class="hljs-comment">// ...</span><br>	buf := <span class="hljs-built_in">make</span>([]<span class="hljs-type">byte</span>, snapChunkLen) <span class="hljs-comment">// snapChunkLen = 1024 * 1024</span><br>	<span class="hljs-keyword">for</span> remain := snap.TotalSize(); remain &gt; <span class="hljs-number">0</span>; remain -= <span class="hljs-type">uint64</span>(<span class="hljs-built_in">len</span>(buf)) &#123;<br>		_, err := io.ReadFull(snap, buf)<br>		<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;<br>			<span class="hljs-keyword">return</span> errors.Errorf(<span class="hljs-string">&quot;failed to read snapshot chunk: %v&quot;</span>, err)<br>		&#125;<br>		err = stream.Send(&amp;raft_serverpb.SnapshotChunk&#123;Data: buf&#125;)<br>		<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;<br>			<span class="hljs-keyword">return</span> err<br>		&#125;<br>	&#125;<br>    <span class="hljs-comment">// ...</span><br>&#125;<br></code></pre></td></tr></table></figure>
+<p>可以看到最终 snapshot 以 snapChunkLen 为单位分块发送出去的，后面的事情就是 gRPC 的工作了，探秘自此结束。 </p>
+<h2 id="Part-3：Snapshot-的接收"><a href="#Part-3：Snapshot-的接收" class="headerlink" title="Part 3：Snapshot 的接收"></a>Part 3：Snapshot 的接收</h2><p>当使用 gRPC 发送 snapshot 时，对应 peer 也就进入了接收流程。上面提到的 snapWorker 也会处理接收操作，这里不再赘述。当所有的 snapshot 分块都接受完成后，就会给 raftWorker 监听的管道发送消息，最后调用 rawNode.Step() 让 raft 调用 handleSnapshot() 处理。 </p>
+<h2 id="Part-4：应用来自其他-Peer-的-Snapshot"><a href="#Part-4：应用来自其他-Peer-的-Snapshot" class="headerlink" title="Part 4：应用来自其他 Peer 的 Snapshot"></a>Part 4：应用来自其他 Peer 的 Snapshot</h2><p>handleSnapshot() 接收到 snapshot 后只是更新了一些元数据，并将 snapshot 赋值给 pendingSnapshot，等待上层调用 Ready() 获取 pendingSnapshot：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(d *peerMsgHandler)</span></span> HandleRaftReady() &#123;<br>	<span class="hljs-comment">// Your Code Here (2B).</span><br>	rd := d.RaftGroup.Ready()<br>	applySnapResult, _ := d.peerStorage.SaveReadyState(&amp;rd)<br>	<span class="hljs-comment">//...</span><br>	d.RaftGroup.Advance(rd)<br>&#125;<br><br><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(ps *PeerStorage)</span></span> SaveReadyState(ready *raft.Ready) &#123;<br>	<span class="hljs-comment">// Your Code Here (2B/2C).</span><br>	applySnapResult, err := ps.ApplySnapshot(&amp;ready.Snapshot, ...)<br>	<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;<br>		<span class="hljs-built_in">panic</span>(err)<br>	&#125;<br>    <span class="hljs-comment">// ...</span><br>&#125;<br><br><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(ps *PeerStorage)</span></span> ApplySnapshot(snapshot *eraftpb.Snapshot, ...) &#123;<br>    <span class="hljs-comment">// ...</span><br>	<span class="hljs-comment">// send runner.RegionTaskApply task to region worker through </span><br>    <span class="hljs-comment">// PeerStorage.regionSched and</span><br>	<span class="hljs-comment">// wait until region worker finishes</span><br>	ch := <span class="hljs-built_in">make</span>(<span class="hljs-keyword">chan</span> <span class="hljs-type">bool</span>, <span class="hljs-number">1</span>)<br>	ps.regionSched &lt;- &amp;runner.RegionTaskApply&#123;<br>		RegionId: snapData.Region.GetId(),<br>		Notifier: ch,<br>		SnapMeta: snapshot.Metadata,<br>		StartKey: snapData.Region.StartKey,<br>		EndKey:   snapData.Region.EndKey,<br>	&#125;<br><br>	<span class="hljs-comment">// waiting</span><br>	&lt;-ch<br>    <span class="hljs-keyword">return</span> ...<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>上面代码很明显了，上层获取到 Ready.Snapshot 后，会创建 RegionTaskApply 任务通过 regionSched 通道发送给 RegionWorker -&gt; handle() -&gt; handleApply() 处理：</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(r *regionTaskHandler)</span></span> Handle(t worker.Task) &#123;<br>	<span class="hljs-keyword">switch</span> t.(<span class="hljs-keyword">type</span>) &#123;<br>	<span class="hljs-keyword">case</span> *RegionTaskGen:<br>		task := t.(*RegionTaskGen)<br>		<span class="hljs-comment">// It is safe for now to handle generating and applying snapshot concurrently,</span><br>		<span class="hljs-comment">// but it may not when merge is implemented.</span><br>		r.ctx.handleGen(task.RegionId, task.Notifier)<br>	<span class="hljs-keyword">case</span> *RegionTaskApply:<br>		task := t.(*RegionTaskApply)<br>		r.ctx.handleApply(task.RegionId, task.Notifier, task.StartKey, task.EndKey, task.SnapMeta)<br>	<span class="hljs-keyword">case</span> *RegionTaskDestroy:<br>		task := t.(*RegionTaskDestroy)<br>		r.ctx.cleanUpRange(task.RegionId, task.StartKey, task.EndKey)<br>	&#125;<br>&#125;<br><br><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(snapCtx *snapContext)</span></span> handleApply(...) &#123;<br>	err := snapCtx.applySnap(regionId, startKey, endKey, snapMeta)<br>	<span class="hljs-comment">// ...</span><br>&#125;<br><br><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(snapCtx *snapContext)</span></span> applySnap(...) &#123;<br>	applyOptions := snap.NewApplyOptions(snapCtx.engines.Kv, &amp;metapb.Region&#123;<br>		Id:       regionId,<br>		StartKey: startKey,<br>		EndKey:   endKey,<br>	&#125;)<br>	<span class="hljs-keyword">if</span> err := snapshot.Apply(*applyOptions); err != <span class="hljs-literal">nil</span> &#123;<br>		<span class="hljs-keyword">return</span> err<br>	&#125;<br>&#125;<br></code></pre></td></tr></table></figure>
+<p>可以看到，上面一步步调用，最后调用 snapshot.Apply()，注意这里传入的是 badger.kvDB。<br>snapshot.Apply() 和上面提到的 snapshot 创建过程的 snapBuilder.build() 执行的是相反的步骤，即，将 snapshot 中的内容写入到磁盘:</p>
+<figure class="highlight golang"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><code class="hljs golang"><span class="hljs-function"><span class="hljs-keyword">func</span> <span class="hljs-params">(s *Snap)</span></span> Apply(opts ApplyOptions) <span class="hljs-type">error</span> &#123;<br>	externalFiles := <span class="hljs-built_in">make</span>([]*os.File, <span class="hljs-number">0</span>, <span class="hljs-built_in">len</span>(s.CFFiles))<br>	<span class="hljs-keyword">for</span> _, cfFile := <span class="hljs-keyword">range</span> s.CFFiles &#123;<br>		file, err := os.Open(cfFile.Path)<br>		<span class="hljs-keyword">if</span> err != <span class="hljs-literal">nil</span> &#123;<br>			log.Errorf(<span class="hljs-string">&quot;open ingest file %s failed: %s&quot;</span>, cfFile.Path, err)<br>			<span class="hljs-keyword">return</span> err<br>		&#125;<br>		externalFiles = <span class="hljs-built_in">append</span>(externalFiles, file)<br>	&#125;<br>    <span class="hljs-comment">// write to DB</span><br>	n, err := opts.DB.IngestExternalFiles(externalFiles)<br>    <span class="hljs-comment">// ...</span><br>&#125;<br></code></pre></td></tr></table></figure>
+<p>snapshot 的应用分析自此结束。</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>通过上面的分析，可以得到以下信息：</p>
+<ol>
+<li>snapshot 的创建、发送、接收和处理都与 Raft 无关，它无需关系具体数据（除了元数据）。</li>
+<li>snapshot 的发送和接收都采取了单独的 RPC 异步处理。</li>
+<li>生成 snapshot 需要从 kvDB 中读取数据，然后返回给 Raft，最后通过 Ready 交给上层发送。</li>
+<li>snapshot 接收后，需要先交给 Raft 更新一些元数据，然后通过 Ready 交给上层写到 kvDB 中。</li>
+</ol>
+
+              
+            </div>
+            <hr/>
+            <div>
+              <div class="post-metas my-3">
+  
+    <div class="post-meta mr-3 d-flex align-items-center">
+      <i class="iconfont icon-category"></i>
+      
+
+<span class="category-chains">
+  
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E5%88%86%E5%B8%83%E5%BC%8F/" class="category-chain-item">分布式</a>
+  
+  
+
+      </span>
+    
+  
+    
+      <span class="category-chain">
+        
+  <a href="/categories/%E6%95%B0%E6%8D%AE%E5%BA%93/" class="category-chain-item">数据库</a>
+  
+  
+
+      </span>
+    
+  
+</span>
+
+    </div>
+  
+  
+    <div class="post-meta">
+      <i class="iconfont icon-tags"></i>
+      
+        <a href="/tags/TinyKV/">#TinyKV</a>
+      
+    </div>
+  
+</div>
+
+
+              
+  
+
+  <div class="license-box my-3">
+    <div class="license-title">
+      <div>TinyKV Snapshot 流程探秘</div>
+      <div>http://example.com/2022/06/16/TinyKV-Snapshot-流程/</div>
+    </div>
+    <div class="license-meta">
+      
+        <div class="license-meta-item">
+          <div>作者</div>
+          <div>gouhongshen</div>
+        </div>
+      
+      
+        <div class="license-meta-item license-meta-date">
+          <div>发布于</div>
+          <div>2022年6月16日</div>
+        </div>
+      
+      
+      <div class="license-meta-item">
+        <div>许可协议</div>
+        <div>
+          
+            
+            
+              <a target="_blank" href="https://creativecommons.org/licenses/by/4.0/">
+              <span class="hint--top hint--rounded" aria-label="BY - 署名">
+                <i class="iconfont icon-by"></i>
+              </span>
+              </a>
+            
+          
+        </div>
+      </div>
+    </div>
+    <div class="license-icon iconfont"></div>
+  </div>
+
+
+
+              
+                <div class="post-prevnext my-3">
+                  <article class="post-prev col-6">
+                    
+                    
+                      <a href="/2022/06/16/%E4%B8%8E%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9A%84%E5%88%9D%E8%A7%81/" title="与数据库的初见">
+                        <i class="iconfont icon-arrowleft"></i>
+                        <span class="hidden-mobile">与数据库的初见</span>
+                        <span class="visible-mobile">上一篇</span>
+                      </a>
+                    
+                  </article>
+                  <article class="post-next col-6">
+                    
+                    
+                      <a href="/2022/06/14/raft-%E6%9D%82%E8%AE%B0/" title="Raft 算法问答录">
+                        <span class="hidden-mobile">Raft 算法问答录</span>
+                        <span class="visible-mobile">下一篇</span>
+                        <i class="iconfont icon-arrowright"></i>
+                      </a>
+                    
+                  </article>
+                </div>
+              
+            </div>
+
+            
+  <article id="comments" lazyload>
+    
+  <div id="valine"></div>
+  <script type="text/javascript">
+    Fluid.utils.loadComments('#valine', function() {
+      Fluid.utils.createScript('https://lib.baomitu.com/valine/1.5.0/Valine.min.js', function() {
+        var options = Object.assign(
+          {"appId":"LNOx2vLkIuWg9k1cy08Is3vl-MdYXbMMI","appKey":"zzkSgrAk6AEncP4gqAbFFQRR","path":"window.location.pathname","placeholder":"吐槽一下","avatar":"retro","meta":["nick","mail","link"],"requiredFields":[],"pageSize":10,"lang":"zh-CN","highlight":false,"recordIP":false,"serverURLs":"","emojiCDN":"https://img.t.sinajs.cn/t4/appstyle/expression/ext/normal/","emojiMaps":null,"enableQQ":false},
+          {
+            el: "#valine",
+            path: window.location.pathname
+          }
+        )
+        new Valine(options);
+        Fluid.utils.waitElementVisible('#valine .vcontent', () => {
+          var imgSelector = '#valine .vcontent img:not(.vemoji)';
+          Fluid.plugins.imageCaption(imgSelector);
+          Fluid.plugins.fancyBox(imgSelector);
+        })
+      });
+    });
+  </script>
+  <noscript>Please enable JavaScript to view the comments</noscript>
+
+
+  </article>
+
+
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <div class="side-col d-none d-lg-block col-lg-2">
+      
+  <aside class="sidebar" style="margin-left: -1rem">
+    <div id="toc">
+  <p class="toc-header"><i class="iconfont icon-list"></i>&nbsp;目录</p>
+  <div class="toc-body" id="toc-body"></div>
+</div>
+
+
+
+  </aside>
+
+
+    </div>
+  </div>
+</div>
+
+
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+
+  
+
+
+  
+  
+
+
+
+
+
+
+
+
+    
+
+    
+      <a id="scroll-top-button" aria-label="TOP" href="#" role="button">
+        <i class="iconfont icon-arrowup" aria-hidden="true"></i>
+      </a>
+    
+
+    
+      <div class="modal fade" id="modalSearch" tabindex="-1" role="dialog" aria-labelledby="ModalLabel"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header text-center">
+        <h4 class="modal-title w-100 font-weight-bold">搜索</h4>
+        <button type="button" id="local-search-close" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body mx-3">
+        <div class="md-form mb-5">
+          <input type="text" id="local-search-input" class="form-control validate">
+          <label data-error="x" data-success="v" for="local-search-input">关键词</label>
+        </div>
+        <div class="list-group" id="local-search-result"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+    
+
+    
+  </main>
+
+  <footer>
+    <div class="footer-inner">
+  
+    <div class="footer-content">
+       <a href="https://hexo.io" target="_blank" rel="nofollow noopener"><span>Hexo</span></a> <i class="iconfont icon-love"></i> <a href="https://github.com/fluid-dev/hexo-theme-fluid" target="_blank" rel="nofollow noopener"><span>Fluid</span></a> 
+    </div>
+  
+  
+  
+  
+</div>
+
+  </footer>
+
+  <!-- Scripts -->
+  
+  <script  src="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.js" ></script>
+  <link  rel="stylesheet" href="https://lib.baomitu.com/nprogress/0.2.0/nprogress.min.css" />
+
+  <script>
+    NProgress.configure({"showSpinner":false,"trickleSpeed":100})
+    NProgress.start()
+    window.addEventListener('load', function() {
+      NProgress.done();
+    })
+  </script>
+
+
+<script  src="https://lib.baomitu.com/jquery/3.6.0/jquery.min.js" ></script>
+<script  src="https://lib.baomitu.com/twitter-bootstrap/4.6.1/js/bootstrap.min.js" ></script>
+<script  src="/js/events.js" ></script>
+<script  src="/js/plugins.js" ></script>
+
+
+  <script  src="https://lib.baomitu.com/typed.js/2.0.12/typed.min.js" ></script>
+  <script>
+    (function (window, document) {
+      var typing = Fluid.plugins.typing;
+      var subtitle = document.getElementById('subtitle');
+      if (!subtitle || !typing) {
+        return;
+      }
+      var text = subtitle.getAttribute('data-typed-text');
+      
+        typing(text);
+      
+    })(window, document);
+  </script>
+
+
+
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+  
+
+
+
+
+  
+    <script  src="/js/img-lazyload.js" ></script>
+  
+
+
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/tocbot/4.18.2/tocbot.min.js', function() {
+    var toc = jQuery('#toc');
+    if (toc.length === 0 || !window.tocbot) { return; }
+    var boardCtn = jQuery('#board-ctn');
+    var boardTop = boardCtn.offset().top;
+
+    window.tocbot.init({
+      tocSelector     : '#toc-body',
+      contentSelector : '.markdown-body',
+      headingSelector : CONFIG.toc.headingSelector || 'h1,h2,h3,h4,h5,h6',
+      linkClass       : 'tocbot-link',
+      activeLinkClass : 'tocbot-active-link',
+      listClass       : 'tocbot-list',
+      isCollapsedClass: 'tocbot-is-collapsed',
+      collapsibleClass: 'tocbot-is-collapsible',
+      collapseDepth   : CONFIG.toc.collapseDepth || 0,
+      scrollSmooth    : true,
+      headingsOffset  : -boardTop
+    });
+    if (toc.find('.toc-list-item').length > 0) {
+      toc.css('visibility', 'visible');
+    }
+  });
+</script>
+
+
+  <script>
+  (function() {
+    var enableLang = CONFIG.code_language.enable && CONFIG.code_language.default;
+    var enableCopy = CONFIG.copy_btn;
+    if (!enableLang && !enableCopy) {
+      return;
+    }
+
+    function getBgClass(ele) {
+      return Fluid.utils.getBackgroundLightness(ele) >= 0 ? 'code-widget-light' : 'code-widget-dark';
+    }
+
+    var copyTmpl = '';
+    copyTmpl += '<div class="code-widget">';
+    copyTmpl += 'LANG';
+    copyTmpl += '</div>';
+    jQuery('.markdown-body pre').each(function() {
+      var $pre = jQuery(this);
+      if ($pre.find('code.mermaid').length > 0) {
+        return;
+      }
+      if ($pre.find('span.line').length > 0) {
+        return;
+      }
+
+      var lang = '';
+
+      if (enableLang) {
+        lang = CONFIG.code_language.default;
+        if ($pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2 && $pre.children().hasClass('hljs')) {
+          lang = $pre[0].children[0].classList[1];
+        } else if ($pre[0].getAttribute('data-language')) {
+          lang = $pre[0].getAttribute('data-language');
+        } else if ($pre.parent().hasClass('sourceCode') && $pre[0].children.length > 0 && $pre[0].children[0].classList.length >= 2) {
+          lang = $pre[0].children[0].classList[1];
+          $pre.parent().addClass('code-wrapper');
+        } else if ($pre.parent().hasClass('markdown-body') && $pre[0].classList.length === 0) {
+          $pre.wrap('<div class="code-wrapper"></div>');
+        }
+        lang = lang.toUpperCase().replace('NONE', CONFIG.code_language.default);
+      }
+      $pre.append(copyTmpl.replace('LANG', lang).replace('code-widget">',
+        getBgClass($pre[0]) + (enableCopy ? ' code-widget copy-btn" data-clipboard-snippet><i class="iconfont icon-copy"></i>' : ' code-widget">')));
+
+      if (enableCopy) {
+        Fluid.utils.createScript('https://lib.baomitu.com/clipboard.js/2.0.10/clipboard.min.js', function() {
+          var clipboard = new window.ClipboardJS('.copy-btn', {
+            target: function(trigger) {
+              var nodes = trigger.parentNode.childNodes;
+              for (var i = 0; i < nodes.length; i++) {
+                if (nodes[i].tagName === 'CODE') {
+                  return nodes[i];
+                }
+              }
+            }
+          });
+          clipboard.on('success', function(e) {
+            e.clearSelection();
+            e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-copy', 'icon-success');
+            setTimeout(function() {
+              e.trigger.innerHTML = e.trigger.innerHTML.replace('icon-success', 'icon-copy');
+            }, 2000);
+          });
+        });
+      }
+    });
+  })();
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/anchor-js/4.3.1/anchor.min.js', function() {
+    window.anchors.options = {
+      placement: CONFIG.anchorjs.placement,
+      visible  : CONFIG.anchorjs.visible
+    };
+    if (CONFIG.anchorjs.icon) {
+      window.anchors.options.icon = CONFIG.anchorjs.icon;
+    }
+    var el = (CONFIG.anchorjs.element || 'h1,h2,h3,h4,h5,h6').split(',');
+    var res = [];
+    for (var item of el) {
+      res.push('.markdown-body > ' + item.trim());
+    }
+    if (CONFIG.anchorjs.placement === 'left') {
+      window.anchors.options.class = 'anchorjs-link-left';
+    }
+    window.anchors.add(res.join(', '));
+  });
+</script>
+
+
+  
+<script>
+  Fluid.utils.createScript('https://lib.baomitu.com/fancybox/3.5.7/jquery.fancybox.min.js', function() {
+    Fluid.plugins.fancyBox();
+  });
+</script>
+
+
+  <script>Fluid.plugins.imageCaption();</script>
+
+  
+      <script>
+        MathJax = {
+          tex    : {
+            inlineMath: { '[+]': [['$', '$']] }
+          },
+          loader : {
+            load: ['ui/lazy']
+          },
+          options: {
+            renderActions: {
+              findScript    : [10, doc => {
+                document.querySelectorAll('script[type^="math/tex"]').forEach(node => {
+                  const display = !!node.type.match(/; *mode=display/);
+                  const math = new doc.options.MathItem(node.textContent, doc.inputJax[0], display);
+                  const text = document.createTextNode('');
+                  node.parentNode.replaceChild(text, node);
+                  math.start = { node: text, delim: '', n: 0 };
+                  math.end = { node: text, delim: '', n: 0 };
+                  doc.math.push(math);
+                });
+              }, '', false],
+              insertedScript: [200, () => {
+                document.querySelectorAll('mjx-container').forEach(node => {
+                  let target = node.parentNode;
+                  if (target.nodeName.toLowerCase() === 'li') {
+                    target.parentNode.classList.add('has-jax');
+                  }
+                });
+              }, '', false]
+            }
+          }
+        };
+      </script>
+    
+
+  <script  src="https://lib.baomitu.com/mathjax/3.2.1/es5/tex-mml-chtml.js" ></script>
+
+  <script  src="/js/local-search.js" ></script>
+
+  <script defer src="/js/leancloud.js" ></script>
+
+
+
+
+
+<!-- 主题的启动项，将它保持在最底部 -->
+<!-- the boot of the theme, keep it at the bottom -->
+<script  src="/js/boot.js" ></script>
+
+
+  
+
+  <noscript>
+    <div class="noscript-warning">博客在允许 JavaScript 运行的环境下浏览效果更佳</div>
+  </noscript>
+</body>
+</html>
